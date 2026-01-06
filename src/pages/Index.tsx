@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { BottomNavigation, TabId } from '@/components/layout/BottomNavigation';
 import { DateStrip } from '@/components/dashboard/DateStrip';
@@ -15,11 +15,20 @@ import { RaidsScreen } from '@/components/raids/RaidsScreen';
 import { StatsScreen } from '@/components/stats/StatsScreen';
 import { SettingsScreen } from '@/components/settings/SettingsScreen';
 import { AISchedulerModal } from '@/components/scheduler/AISchedulerModal';
+import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { mockTasks, mockYearGoal, mockUserStats, mockDayStatuses } from '@/data/mockData';
 import { Task } from '@/types/focusforge';
 import { useToast } from '@/hooks/use-toast';
 
+const ONBOARDING_KEY = 'focusforge_onboarded';
+
 const Index = () => {
+  const [hasOnboarded, setHasOnboarded] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(ONBOARDING_KEY) === 'true';
+    }
+    return false;
+  });
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeFocusTask, setActiveFocusTask] = useState<Task | null>(null);
@@ -30,6 +39,15 @@ const Index = () => {
   const hour = new Date().getHours();
   const timeOfDay = hour < 10 ? 'morning' : hour < 18 ? 'midday' : 'evening';
   const hasActiveTask = mockTasks.some(t => t.status === 'active');
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem(ONBOARDING_KEY, 'true');
+    setHasOnboarded(true);
+    toast({ 
+      title: "Welcome to FocusForge!", 
+      description: "Your journey to peak productivity begins now." 
+    });
+  };
 
   const handleTaskClick = (task: Task) => {
     if (task.status === 'pending' || task.status === 'active') {
@@ -51,6 +69,11 @@ const Index = () => {
   const handleTasksGenerated = () => {
     toast({ title: "Tasks Added", description: "New tasks have been added to your schedule!" });
   };
+
+  // Onboarding Screen
+  if (!hasOnboarded) {
+    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
+  }
 
   // Focus Session Screen (full screen takeover)
   if (activeFocusTask) {
