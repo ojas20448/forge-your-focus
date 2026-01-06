@@ -1,11 +1,11 @@
 import React from 'react';
-import { BottomNavigation } from './BottomNavigation';
 
 interface MobileLayoutProps {
   children: React.ReactNode;
+  showNav?: boolean;
 }
 
-export const MobileLayout: React.FC<MobileLayoutProps> = ({ children }) => {
+export const MobileLayout: React.FC<MobileLayoutProps> = ({ children, showNav = true }) => {
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative overflow-hidden">
       {/* Ambient background glow */}
@@ -18,9 +18,6 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({ children }) => {
       <main className="flex-1 relative z-10 pb-20 overflow-y-auto scrollbar-hide">
         {children}
       </main>
-      
-      {/* Bottom navigation */}
-      <BottomNavigation />
     </div>
   );
 };
