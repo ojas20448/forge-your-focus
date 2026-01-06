@@ -2,17 +2,15 @@ import React from 'react';
 import { Home, Target, Trophy, BarChart3, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface NavItem {
-  icon: React.ReactNode;
-  label: string;
-  id: string;
-  active?: boolean;
+export type TabId = 'home' | 'goals' | 'raids' | 'stats' | 'settings';
+
+interface BottomNavigationProps {
+  activeTab: TabId;
+  onTabChange: (tab: TabId) => void;
 }
 
-export const BottomNavigation: React.FC = () => {
-  const [activeTab, setActiveTab] = React.useState('home');
-
-  const navItems: NavItem[] = [
+export const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab, onTabChange }) => {
+  const navItems: { icon: React.ReactNode; label: string; id: TabId }[] = [
     { icon: <Home className="w-5 h-5" />, label: 'Timeline', id: 'home' },
     { icon: <Target className="w-5 h-5" />, label: 'Goals', id: 'goals' },
     { icon: <Trophy className="w-5 h-5" />, label: 'Raids', id: 'raids' },
@@ -27,9 +25,9 @@ export const BottomNavigation: React.FC = () => {
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => onTabChange(item.id)}
               className={cn(
-                "flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-200",
+                "flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-200 relative",
                 activeTab === item.id
                   ? "text-primary bg-primary/10"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"

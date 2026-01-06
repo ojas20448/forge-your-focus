@@ -1,23 +1,55 @@
 import React from 'react';
-import { Plus, Target, TrendingUp, Clock, ChevronLeft } from 'lucide-react';
+import { Plus, Target, TrendingUp, Clock, ChevronLeft, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GoalCard } from './GoalCard';
 import { Goal } from '@/types/focusforge';
 import { cn } from '@/lib/utils';
 
 interface GoalsScreenProps {
-  goals: Goal[];
-  onGoalClick?: (goal: Goal) => void;
-  onBack?: () => void;
-  onCreateGoal?: () => void;
+  onOpenPlanner?: () => void;
 }
 
-export const GoalsScreen: React.FC<GoalsScreenProps> = ({
-  goals,
-  onGoalClick,
-  onBack,
-  onCreateGoal,
-}) => {
+const mockGoals: Goal[] = [
+  {
+    id: 'g_year_01',
+    type: 'year',
+    title: 'Crack JEE 2026',
+    description: 'Top 500 rank in JEE Advanced',
+    target_date: '2026-05-31',
+    progress_percent: 12,
+    is_active: true,
+    health_score: 78,
+    required_weekly_hours: 25,
+    monthly_milestones: ['Complete Physics Mechanics', 'Master Organic Chemistry']
+  },
+  {
+    id: 'g_month_01',
+    type: 'month',
+    title: 'Complete Physics Mechanics',
+    description: 'Chapters 1-6 with all practice problems',
+    target_date: '2026-01-31',
+    progress_percent: 35,
+    is_active: true,
+    parent_goal_id: 'g_year_01',
+    health_score: 65,
+    required_weekly_hours: 12
+  },
+  {
+    id: 'g_month_02',
+    type: 'month',
+    title: 'Calculus Fundamentals',
+    description: 'Limits, derivatives, and integration basics',
+    target_date: '2026-01-31',
+    progress_percent: 20,
+    is_active: true,
+    parent_goal_id: 'g_year_01',
+    health_score: 45,
+    required_weekly_hours: 8
+  }
+];
+
+export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
+  const goals = mockGoals;
   const yearGoals = goals.filter(g => g.type === 'year');
   const monthGoals = goals.filter(g => g.type === 'month');
 
@@ -34,15 +66,16 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({
       {/* Header */}
       <header className="sticky top-0 bg-background/95 backdrop-blur-xl border-b border-border z-20">
         <div className="flex items-center justify-between px-4 py-4">
-          {onBack && (
-            <button onClick={onBack} className="p-2 -ml-2 rounded-lg hover:bg-secondary">
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-          )}
           <h1 className="text-xl font-bold text-foreground">Goals</h1>
-          <Button variant="ghost" size="icon-sm" onClick={onCreateGoal}>
-            <Plus className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={onOpenPlanner}>
+              <Sparkles className="w-4 h-4 mr-1" />
+              Planner
+            </Button>
+            <Button variant="ghost" size="icon">
+              <Plus className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -86,7 +119,7 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({
           </h2>
           <div className="space-y-3">
             {yearGoals.map(goal => (
-              <GoalCard key={goal.id} goal={goal} onClick={() => onGoalClick?.(goal)} />
+              <GoalCard key={goal.id} goal={goal} />
             ))}
           </div>
         </section>
@@ -100,7 +133,7 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({
           </h2>
           <div className="space-y-3">
             {monthGoals.map(goal => (
-              <GoalCard key={goal.id} goal={goal} onClick={() => onGoalClick?.(goal)} />
+              <GoalCard key={goal.id} goal={goal} />
             ))}
           </div>
         </section>
@@ -116,7 +149,7 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({
           <p className="text-sm text-muted-foreground mb-6">
             Set your first goal to align your daily work with long-term purpose
           </p>
-          <Button variant="glow" onClick={onCreateGoal}>
+          <Button variant="glow">
             <Plus className="w-4 h-4" />
             Create Year Goal
           </Button>
