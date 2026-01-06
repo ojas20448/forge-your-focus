@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { User, Bell, Shield, Moon, Zap, Clock, ChevronRight, LogOut, HelpCircle, FileText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Bell, Shield, Moon, Sun, Zap, Clock, ChevronRight, LogOut, HelpCircle, FileText, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -52,7 +52,20 @@ const SettingItem: React.FC<SettingItemProps> = ({
 export const SettingsScreen: React.FC = () => {
   const [notifications, setNotifications] = useState(true);
   const [strictMode, setStrictMode] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -119,9 +132,9 @@ export const SettingsScreen: React.FC = () => {
             onToggle={setStrictMode}
           />
           <SettingItem
-            icon={<Moon className="w-5 h-5 text-muted-foreground" />}
+            icon={darkMode ? <Moon className="w-5 h-5 text-primary" /> : <Sun className="w-5 h-5 text-warning" />}
             label="Dark Mode"
-            description="Always on for focus"
+            description={darkMode ? "Dark theme active" : "Light theme active"}
             toggle
             value={darkMode}
             onToggle={setDarkMode}
@@ -129,8 +142,33 @@ export const SettingsScreen: React.FC = () => {
         </div>
       </section>
 
-      {/* Privacy & Security */}
+      {/* Theme Colors */}
       <section className="px-4 py-2">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-4">
+          Accent Color
+        </h2>
+        <div className="bg-card rounded-2xl border border-border/50 p-4">
+          <div className="flex items-center gap-3">
+            {[
+              { color: 'hsl(217, 91%, 60%)', name: 'Blue' },
+              { color: 'hsl(0, 84%, 60%)', name: 'Red' },
+              { color: 'hsl(142, 71%, 45%)', name: 'Green' },
+              { color: 'hsl(280, 87%, 65%)', name: 'Purple' },
+              { color: 'hsl(38, 92%, 50%)', name: 'Orange' },
+            ].map((theme) => (
+              <button
+                key={theme.name}
+                className="w-10 h-10 rounded-full border-2 border-transparent hover:border-foreground/30 transition-colors"
+                style={{ backgroundColor: theme.color }}
+                title={theme.name}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Privacy & Security */}
+      <section className="px-4 py-4">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-4">
           Privacy & Security
         </h2>
@@ -151,7 +189,7 @@ export const SettingsScreen: React.FC = () => {
       </section>
 
       {/* Support */}
-      <section className="px-4 py-4">
+      <section className="px-4 py-2">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-4">
           Support
         </h2>
