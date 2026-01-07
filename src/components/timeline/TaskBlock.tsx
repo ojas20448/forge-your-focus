@@ -17,11 +17,11 @@ const taskIcons: Record<TaskType, React.ReactNode> = {
 };
 
 const statusStyles: Record<TaskStatus, string> = {
-  pending: 'bg-card border-border/50 hover:border-primary/30 hover:bg-card/80',
-  active: 'bg-primary/15 border-primary border-2 pulse-glow shadow-lg shadow-primary/20',
-  completed: 'bg-secondary/20 border-success/20 opacity-60',
-  rotten: 'bg-gradient-to-br from-rotten/30 to-amber-900/20 border-rotten/60 border-dashed',
-  violated: 'bg-accent/15 border-accent border-2 shake-violation glow-accent',
+  pending: 'border-border/30 hover:border-primary/30',
+  active: 'border-primary border-2 shadow-lg shadow-primary/20',
+  completed: 'border-success/30 opacity-70',
+  rotten: 'border-rotten/50 border-dashed',
+  violated: 'border-accent border-2',
 };
 
 const priorityColors = {
@@ -51,7 +51,7 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({ task, onTaskClick }) => {
     <button
       onClick={() => onTaskClick?.(task)}
       className={cn(
-        "w-full text-left ml-14 mr-4 p-4 rounded-xl border-2 transition-all duration-300",
+        "w-full text-left ml-14 mr-4 p-4 rounded-2xl border transition-all duration-300 bg-card/80 backdrop-blur-sm",
         statusStyles[task.status],
         task.status === 'active' && 'scale-[1.02]'
       )}
@@ -63,7 +63,7 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({ task, onTaskClick }) => {
           task.type === 'manifestation' 
             ? 'bg-manifestation/20 text-manifestation'
             : task.type === 'break'
-            ? 'bg-secondary text-muted-foreground'
+            ? 'bg-secondary/50 text-muted-foreground'
             : 'bg-primary/20 text-primary'
         )}>
           {taskIcons[task.type]}
