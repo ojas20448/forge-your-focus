@@ -17,12 +17,15 @@ import { StatsScreen } from '@/components/stats/StatsScreen';
 import { SettingsScreen } from '@/components/settings/SettingsScreen';
 import { AISchedulerModal } from '@/components/scheduler/AISchedulerModal';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
-import { mockTasks, mockYearGoal, mockUserStats, mockDayStatuses } from '@/data/mockData';
-import { Task } from '@/types/focusforge';
+import { mockDayStatuses } from '@/data/mockData';
+import { Task, TaskStatus, TaskType } from '@/types/focusforge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { useTasks, DbTask } from '@/hooks/useTasks';
+import { useGoals } from '@/hooks/useGoals';
 import { Loader2 } from 'lucide-react';
+import { format } from 'date-fns';
 
 const ONBOARDING_KEY = 'focusforge_onboarded';
 
@@ -44,6 +47,30 @@ const Index = () => {
   const [showSchedulerModal, setShowSchedulerModal] = useState(false);
   const { toast } = useToast();
 
+  // Fetch tasks and goals from database
+  const { tasks: dbTasks, loading: tasksLoading, refetch: refetchTasks } = useTasks(selectedDate);
+  const { goals, yearGoals, loading: goalsLoading } = useGoals();
+
+  // Convert DB tasks to UI Task format
+  const tasks: Task[] = dbTasks.map(dbTask => ({
+    id: dbTask.id,
+    title: dbTask.title,
+    description: dbTask.description || '',
+    type: 'deepwork' as TaskType,
+    status: (dbTask.is_completed ? 'completed' : 'pending') as TaskStatus,
+    duration_min: dbTask.duration_minutes,
+    priority: (dbTask.priority || 'medium') as 'low' | 'medium' | 'high',
+    decay_level: 0,
+    suggested_block: {
+      start: dbTask.start_time.slice(0, 5),
+      end: dbTask.end_time.slice(0, 5),
+    },
+    verification_required: false,
+    linked_goal_id: dbTask.goal_id || undefined,
+    goal_alignment_score: dbTask.goal_id ? 0.8 : 0,
+    xp_earned: dbTask.xp_reward || 0,
+  }));
+
   // Redirect to auth if not logged in
   useEffect(() => {
     if (!authLoading && !user) {
@@ -53,7 +80,23 @@ const Index = () => {
 
   const hour = new Date().getHours();
   const timeOfDay = hour < 10 ? 'morning' : hour < 18 ? 'midday' : 'evening';
-  const hasActiveTask = mockTasks.some(t => t.status === 'active');
+  const hasActiveTask = tasks.some(t => t.status === 'active');
+
+  // Build user stats from profile
+  const userStats = {
+    total_xp: profile?.total_xp || 0,
+    level: profile?.level || 1,
+    current_streak: profile?.current_streak || 0,
+    longest_streak: profile?.longest_streak || 0,
+    league: 'bronze' as const,
+    league_rank: 1,
+    efficiency_multiplier: 1,
+    manifestation_streak: 0,
+    weekly_focus_hours: 0,
+    weekly_goal_hours: 0,
+    energy_profile: 'balanced' as const,
+    debt_score: 0,
+  };
 
   const handleOnboardingComplete = () => {
     localStorage.setItem(ONBOARDING_KEY, 'true');
@@ -86,8 +129,11 @@ const Index = () => {
 
   const handleFABAction = (action: string) => {
     if (action === 'focus' || action === 'focus-now') {
-      const pendingTask = mockTasks.find(t => t.status === 'pending' || t.status === 'active');
+      const pendingTask = tasks.find(t => t.status === 'pending' || t.status === 'active');
       if (pendingTask) setActiveFocusTask(pendingTask);
+      else {
+        toast({ title: "No tasks", description: "Create a task first to start focusing." });
+      }
     } else if (action === 'plan') {
       setShowSchedulerModal(true);
     } else {
@@ -96,6 +142,7 @@ const Index = () => {
   };
 
   const handleTasksGenerated = () => {
+    refetchTasks();
     toast({ title: "Tasks Added", description: "New tasks have been added to your schedule!" });
   };
 
@@ -109,13 +156,15 @@ const Index = () => {
     return (
       <FocusSessionScreen
         task={activeFocusTask}
-        onEnd={() => {
+        onEnd={(xpEarned) => {
           setActiveFocusTask(null);
-          toast({ title: "Session ended", description: `+${Math.floor(Math.random() * 100 + 50)} XP earned!` });
+          refetchTasks();
+          toast({ title: "Session ended", description: `+${xpEarned} XP earned!` });
         }}
         onPause={() => {}}
       />
     );
+  }
   }
 
   // Goal Planner Screen (full screen)
@@ -149,20 +198,35 @@ const Index = () => {
                   </p>
                 </div>
                 <div className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-                  <span className="text-xs font-bold text-primary font-mono-time">LVL {mockUserStats.level}</span>
+                  <span className="text-xs font-bold text-primary font-mono-time">LVL {userStats.level}</span>
                 </div>
               </div>
             </header>
             <DateStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} dayStatuses={mockDayStatuses} />
-            <StatsBar stats={mockUserStats} />
-            <GoalOverviewCard yearGoal={mockYearGoal} nextMilestone="Complete Physics Mechanics" daysUntilMilestone={24} />
+            <StatsBar stats={userStats} />
+            {yearGoals.length > 0 && (
+              <GoalOverviewCard 
+                yearGoal={{
+                  id: yearGoals[0].id,
+                  type: 'year',
+                  title: yearGoals[0].title,
+                  description: yearGoals[0].description || '',
+                  target_date: yearGoals[0].target_date || '',
+                  progress_percent: yearGoals[0].progress || 0,
+                  is_active: yearGoals[0].is_active ?? true,
+                  health_score: 70,
+                }} 
+                nextMilestone="Complete current milestone" 
+                daysUntilMilestone={30} 
+              />
+            )}
             <div className="px-4 pt-4 pb-2 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Today's Timeline</h2>
               <span className="text-xs text-muted-foreground font-mono-time">
-                {mockTasks.filter(t => t.status === 'completed').length}/{mockTasks.length} completed
+                {tasks.filter(t => t.status === 'completed').length}/{tasks.length} completed
               </span>
             </div>
-            <Timeline tasks={mockTasks} onTaskClick={handleTaskClick} />
+            <Timeline tasks={tasks} onTaskClick={handleTaskClick} />
             <FloatingActionButton timeOfDay={timeOfDay} onAction={handleFABAction} />
           </>
         );
@@ -177,7 +241,9 @@ const Index = () => {
         isOpen={showSchedulerModal} 
         onClose={() => setShowSchedulerModal(false)}
         onTasksGenerated={handleTasksGenerated}
-        energyProfile={mockUserStats.energy_profile}
+        energyProfile={userStats.energy_profile}
+        goals={goals.map(g => ({ title: g.title, id: g.id }))}
+        selectedDate={selectedDate}
       />
     </MobileLayout>
   );

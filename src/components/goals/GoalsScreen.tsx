@@ -1,65 +1,49 @@
-import React from 'react';
-import { Plus, Target, TrendingUp, Clock, ChevronLeft, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, Target, TrendingUp, Clock, Sparkles, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { GoalCard } from './GoalCard';
-import { Goal } from '@/types/focusforge';
+import { useGoals, CreateGoalInput } from '@/hooks/useGoals';
 import { cn } from '@/lib/utils';
 
 interface GoalsScreenProps {
   onOpenPlanner?: () => void;
 }
 
-const mockGoals: Goal[] = [
-  {
-    id: 'g_year_01',
-    type: 'year',
-    title: 'Crack JEE 2026',
-    description: 'Top 500 rank in JEE Advanced',
-    target_date: '2026-05-31',
-    progress_percent: 12,
-    is_active: true,
-    health_score: 78,
-    required_weekly_hours: 25,
-    monthly_milestones: ['Complete Physics Mechanics', 'Master Organic Chemistry']
-  },
-  {
-    id: 'g_month_01',
-    type: 'month',
-    title: 'Complete Physics Mechanics',
-    description: 'Chapters 1-6 with all practice problems',
-    target_date: '2026-01-31',
-    progress_percent: 35,
-    is_active: true,
-    parent_goal_id: 'g_year_01',
-    health_score: 65,
-    required_weekly_hours: 12
-  },
-  {
-    id: 'g_month_02',
-    type: 'month',
-    title: 'Calculus Fundamentals',
-    description: 'Limits, derivatives, and integration basics',
-    target_date: '2026-01-31',
-    progress_percent: 20,
-    is_active: true,
-    parent_goal_id: 'g_year_01',
-    health_score: 45,
-    required_weekly_hours: 8
-  }
-];
-
 export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
-  const goals = mockGoals;
-  const yearGoals = goals.filter(g => g.type === 'year');
-  const monthGoals = goals.filter(g => g.type === 'month');
+  const { goals, yearGoals, monthGoals, loading, createGoal } = useGoals();
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newGoal, setNewGoal] = useState<CreateGoalInput>({
+    title: '',
+    description: '',
+    type: 'month',
+    target_date: '',
+    color: '#8B5CF6'
+  });
 
   const totalProgress = goals.length > 0 
-    ? Math.round(goals.reduce((acc, g) => acc + g.progress_percent, 0) / goals.length)
+    ? Math.round(goals.reduce((acc, g) => acc + (g.progress || 0), 0) / goals.length)
     : 0;
 
-  const averageHealth = goals.length > 0
-    ? Math.round(goals.reduce((acc, g) => acc + g.health_score, 0) / goals.length)
-    : 0;
+  const handleCreateGoal = async () => {
+    if (!newGoal.title.trim()) return;
+    
+    setCreating(true);
+    await createGoal(newGoal);
+    setCreating(false);
+    setShowCreateModal(false);
+    setNewGoal({ title: '', description: '', type: 'month', target_date: '', color: '#8B5CF6' });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -72,7 +56,7 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
               <Sparkles className="w-4 h-4 mr-1" />
               Planner
             </Button>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={() => setShowCreateModal(true)}>
               <Plus className="w-5 h-5" />
             </Button>
           </div>
@@ -99,13 +83,10 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
           <div className="bg-card rounded-xl p-3 border border-border/50">
             <div className="flex items-center gap-2 mb-1">
               <Clock className="w-4 h-4 text-warning" />
-              <span className="text-xs text-muted-foreground">Health</span>
+              <span className="text-xs text-muted-foreground">Active</span>
             </div>
-            <span className={cn(
-              "text-lg font-bold font-mono-time",
-              averageHealth >= 70 ? "text-success" : averageHealth >= 40 ? "text-warning" : "text-accent"
-            )}>
-              {averageHealth}%
+            <span className="text-lg font-bold font-mono-time">
+              {goals.filter(g => g.is_active).length}
             </span>
           </div>
         </div>
@@ -119,7 +100,19 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
           </h2>
           <div className="space-y-3">
             {yearGoals.map(goal => (
-              <GoalCard key={goal.id} goal={goal} />
+              <GoalCard 
+                key={goal.id} 
+                goal={{
+                  id: goal.id,
+                  type: goal.type as 'year' | 'month' | 'week',
+                  title: goal.title,
+                  description: goal.description || '',
+                  target_date: goal.target_date || '',
+                  progress_percent: goal.progress || 0,
+                  is_active: goal.is_active ?? true,
+                  health_score: 70,
+                }} 
+              />
             ))}
           </div>
         </section>
@@ -133,7 +126,19 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
           </h2>
           <div className="space-y-3">
             {monthGoals.map(goal => (
-              <GoalCard key={goal.id} goal={goal} />
+              <GoalCard 
+                key={goal.id} 
+                goal={{
+                  id: goal.id,
+                  type: goal.type as 'year' | 'month' | 'week',
+                  title: goal.title,
+                  description: goal.description || '',
+                  target_date: goal.target_date || '',
+                  progress_percent: goal.progress || 0,
+                  is_active: goal.is_active ?? true,
+                  health_score: 70,
+                }} 
+              />
             ))}
           </div>
         </section>
@@ -149,10 +154,95 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
           <p className="text-sm text-muted-foreground mb-6">
             Set your first goal to align your daily work with long-term purpose
           </p>
-          <Button variant="glow">
-            <Plus className="w-4 h-4" />
-            Create Year Goal
+          <Button variant="glow" onClick={() => setShowCreateModal(true)}>
+            <Plus className="w-4 h-4 mr-1" />
+            Create Goal
           </Button>
+        </div>
+      )}
+
+      {/* Create Goal Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowCreateModal(false)}
+          />
+          
+          <div className="relative w-full max-w-md bg-card border-t border-x border-border rounded-t-3xl max-h-[85vh] overflow-hidden animate-in slide-in-from-bottom duration-300">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h2 className="text-lg font-bold text-foreground">Create Goal</h2>
+              <Button variant="ghost" size="icon" onClick={() => setShowCreateModal(false)}>
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">Goal Type</label>
+                <div className="flex gap-2">
+                  {(['year', 'month', 'week'] as const).map(type => (
+                    <button
+                      key={type}
+                      onClick={() => setNewGoal(prev => ({ ...prev, type }))}
+                      className={cn(
+                        "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all capitalize",
+                        newGoal.type === type 
+                          ? "bg-primary text-primary-foreground" 
+                          : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                      )}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">Title</label>
+                <Input
+                  value={newGoal.title}
+                  onChange={(e) => setNewGoal(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="e.g., Master React Development"
+                  className="bg-secondary/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">Description</label>
+                <Textarea
+                  value={newGoal.description}
+                  onChange={(e) => setNewGoal(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="What does success look like?"
+                  className="bg-secondary/50 min-h-[80px]"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">Target Date</label>
+                <Input
+                  type="date"
+                  value={newGoal.target_date}
+                  onChange={(e) => setNewGoal(prev => ({ ...prev, target_date: e.target.value }))}
+                  className="bg-secondary/50"
+                />
+              </div>
+
+              <Button 
+                variant="glow" 
+                className="w-full" 
+                onClick={handleCreateGoal}
+                disabled={!newGoal.title.trim() || creating}
+              >
+                {creating ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4 mr-2" />
+                )}
+                Create Goal
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
