@@ -39,8 +39,32 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background pb-24">
+        <header className="sticky top-0 bg-background/95 backdrop-blur-xl border-b border-border z-20">
+          <div className="flex items-center justify-between px-4 py-4">
+            <div className="h-7 w-20 bg-secondary/50 rounded animate-pulse" />
+            <div className="flex items-center gap-2">
+              <div className="h-9 w-24 bg-secondary/50 rounded animate-pulse" />
+              <div className="h-9 w-9 bg-secondary/50 rounded animate-pulse" />
+            </div>
+          </div>
+        </header>
+        <div className="px-4 py-4">
+          <div className="grid grid-cols-3 gap-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-20 bg-secondary/50 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        </div>
+        <div className="px-4 py-2 space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="p-4 rounded-xl bg-card border border-border/50">
+              <div className="h-6 w-2/3 bg-secondary/50 rounded mb-3 animate-pulse" />
+              <div className="h-3 w-full bg-secondary/50 rounded mb-3 animate-pulse" />
+              <div className="h-2 w-full bg-secondary/50 rounded-full animate-pulse" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

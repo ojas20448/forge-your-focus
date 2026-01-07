@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
@@ -44,29 +44,34 @@ export const useRaids = () => {
   const { toast } = useToast();
   const [raids, setRaids] = useState<DbRaid[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [mutating, setMutating] = useState(false);
 
-  const fetchRaids = async () => {
+  const fetchRaids = useCallback(async () => {
     if (!user) {
       setRaids([]);
       setLoading(false);
       return;
     }
 
+    setError(null);
     try {
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('raids')
         .select('*')
         .eq('is_active', true)
         .order('ends_at', { ascending: true });
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
       setRaids(data || []);
-    } catch (error) {
-      console.error('Error fetching raids:', error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch raids';
+      console.error('Error fetching raids:', err);
+      setError(message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchRaids();
@@ -100,11 +105,12 @@ export const useRaids = () => {
     return () => {
       supabase.removeChannel(raidsChannel);
     };
-  }, [user]);
+  }, [user, fetchRaids]);
 
   const createRaid = async (input: CreateRaidInput) => {
     if (!user) return null;
 
+    setMutating(true);
     try {
       // Create the raid
       const { data: raid, error: raidError } = await supabase
@@ -138,20 +144,24 @@ export const useRaids = () => {
         description: `"${input.name}" raid is now active!`
       });
       return raid;
-    } catch (error) {
-      console.error('Error creating raid:', error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create raid';
+      console.error('Error creating raid:', err);
       toast({
-        title: 'Error',
-        description: 'Failed to create raid',
+        title: 'Couldn\'t create raid',
+        description: message,
         variant: 'destructive'
       });
       return null;
+    } finally {
+      setMutating(false);
     }
   };
 
   const joinRaid = async (raidId: string) => {
     if (!user) return false;
 
+    setMutating(true);
     try {
       const { error } = await supabase
         .from('raid_members')
@@ -169,20 +179,24 @@ export const useRaids = () => {
         description: 'You have joined the raid!'
       });
       return true;
-    } catch (error) {
-      console.error('Error joining raid:', error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to join raid';
+      console.error('Error joining raid:', err);
       toast({
-        title: 'Error',
-        description: 'Failed to join raid',
+        title: 'Couldn\'t join raid',
+        description: message,
         variant: 'destructive'
       });
       return false;
+    } finally {
+      setMutating(false);
     }
   };
 
   const leaveRaid = async (raidId: string) => {
     if (!user) return false;
 
+    setMutating(true);
     try {
       const { error } = await supabase
         .from('raid_members')
@@ -197,14 +211,17 @@ export const useRaids = () => {
         description: 'You have left the raid.'
       });
       return true;
-    } catch (error) {
-      console.error('Error leaving raid:', error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to leave raid';
+      console.error('Error leaving raid:', err);
       toast({
-        title: 'Error',
-        description: 'Failed to leave raid',
+        title: 'Couldn\'t leave raid',
+        description: message,
         variant: 'destructive'
       });
       return false;
+    } finally {
+      setMutating(false);
     }
   };
 
@@ -218,8 +235,13 @@ export const useRaids = () => {
 
       if (error) throw error;
       return data || [];
-    } catch (error) {
-      console.error('Error fetching raid members:', error);
+    } catch (err) {
+      console.error('Error fetching raid members:', err);
+      toast({
+        title: 'Couldn\'t load leaderboard',
+        description: 'Please try again.',
+        variant: 'destructive'
+      });
       return [];
     }
   };
@@ -227,6 +249,7 @@ export const useRaids = () => {
   const contributeToRaid = async (raidId: string, hours: number, xp: number) => {
     if (!user) return false;
 
+    setMutating(true);
     try {
       // Update member contribution
       const { data: member, error: memberFetchError } = await supabase
@@ -270,15 +293,19 @@ export const useRaids = () => {
       }
 
       return true;
-    } catch (error) {
-      console.error('Error contributing to raid:', error);
+    } catch (err) {
+      console.error('Error contributing to raid:', err);
       return false;
+    } finally {
+      setMutating(false);
     }
   };
 
   return {
     raids,
     loading,
+    error,
+    mutating,
     createRaid,
     joinRaid,
     leaveRaid,

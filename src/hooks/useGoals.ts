@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
@@ -33,41 +33,68 @@ export const useGoals = () => {
   const { toast } = useToast();
   const [goals, setGoals] = useState<DbGoal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [mutating, setMutating] = useState(false);
 
-  const fetchGoals = async () => {
+  const fetchGoals = useCallback(async () => {
     if (!user) {
       setGoals([]);
       setLoading(false);
       return;
     }
 
+    setError(null);
     try {
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('goals')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
       setGoals(data || []);
-    } catch (error) {
-      console.error('Error fetching goals:', error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch goals';
+      console.error('Error fetching goals:', err);
+      setError(message);
       toast({
-        title: 'Error',
-        description: 'Failed to fetch goals',
+        title: 'Unable to load goals',
+        description: 'Please check your connection and try again.',
         variant: 'destructive'
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, toast]);
 
   useEffect(() => {
     fetchGoals();
-  }, [user]);
+  }, [fetchGoals]);
 
   const createGoal = async (input: CreateGoalInput) => {
     if (!user) return null;
+
+    // Optimistic goal with temp ID
+    const tempId = `temp-${Date.now()}`;
+    const optimisticGoal: DbGoal = {
+      id: tempId,
+      title: input.title,
+      description: input.description || null,
+      type: input.type,
+      target_date: input.target_date || null,
+      progress: 0,
+      is_active: true,
+      parent_goal_id: input.parent_goal_id || null,
+      color: input.color || null,
+      success_criteria: null,
+      user_id: user.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Optimistic update
+    setGoals(prev => [optimisticGoal, ...prev]);
+    setMutating(true);
 
     try {
       const { data, error } = await supabase
@@ -83,25 +110,38 @@ export const useGoals = () => {
 
       if (error) throw error;
 
-      setGoals(prev => [data, ...prev]);
+      // Replace temp goal with real one
+      setGoals(prev => prev.map(g => g.id === tempId ? data : g));
       toast({
         title: 'Goal Created',
         description: `"${input.title}" has been added to your goals.`
       });
       return data;
-    } catch (error) {
-      console.error('Error creating goal:', error);
+    } catch (err) {
+      // Rollback optimistic update
+      setGoals(prev => prev.filter(g => g.id !== tempId));
+      const message = err instanceof Error ? err.message : 'Failed to create goal';
+      console.error('Error creating goal:', err);
       toast({
-        title: 'Error',
-        description: 'Failed to create goal',
+        title: 'Couldn\'t create goal',
+        description: message,
         variant: 'destructive'
       });
       return null;
+    } finally {
+      setMutating(false);
     }
   };
 
   const updateGoal = async (id: string, updates: Partial<DbGoal>) => {
     if (!user) return false;
+
+    // Store previous state for rollback
+    const previousGoals = [...goals];
+    
+    // Optimistic update
+    setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
+    setMutating(true);
 
     try {
       const { error } = await supabase
@@ -111,22 +151,32 @@ export const useGoals = () => {
         .eq('user_id', user.id);
 
       if (error) throw error;
-
-      setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
       return true;
-    } catch (error) {
-      console.error('Error updating goal:', error);
+    } catch (err) {
+      // Rollback
+      setGoals(previousGoals);
+      const message = err instanceof Error ? err.message : 'Failed to update goal';
+      console.error('Error updating goal:', err);
       toast({
-        title: 'Error',
-        description: 'Failed to update goal',
+        title: 'Couldn\'t update goal',
+        description: message,
         variant: 'destructive'
       });
       return false;
+    } finally {
+      setMutating(false);
     }
   };
 
   const deleteGoal = async (id: string) => {
     if (!user) return false;
+
+    // Store for rollback
+    const goalToDelete = goals.find(g => g.id === id);
+    
+    // Optimistic delete
+    setGoals(prev => prev.filter(g => g.id !== id));
+    setMutating(true);
 
     try {
       const { error } = await supabase
@@ -136,21 +186,27 @@ export const useGoals = () => {
         .eq('user_id', user.id);
 
       if (error) throw error;
-
-      setGoals(prev => prev.filter(g => g.id !== id));
+      
       toast({
         title: 'Goal Deleted',
         description: 'Goal has been removed.'
       });
       return true;
-    } catch (error) {
-      console.error('Error deleting goal:', error);
+    } catch (err) {
+      // Rollback
+      if (goalToDelete) {
+        setGoals(prev => [goalToDelete, ...prev]);
+      }
+      const message = err instanceof Error ? err.message : 'Failed to delete goal';
+      console.error('Error deleting goal:', err);
       toast({
-        title: 'Error',
-        description: 'Failed to delete goal',
+        title: 'Couldn\'t delete goal',
+        description: message,
         variant: 'destructive'
       });
       return false;
+    } finally {
+      setMutating(false);
     }
   };
 
@@ -168,6 +224,8 @@ export const useGoals = () => {
     monthGoals,
     weekGoals,
     loading,
+    error,
+    mutating,
     createGoal,
     updateGoal,
     deleteGoal,

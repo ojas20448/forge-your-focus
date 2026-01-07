@@ -35,8 +35,39 @@ export const AchievementsScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background pb-24">
+        <header className="sticky top-0 bg-background/95 backdrop-blur-xl border-b border-border z-20">
+          <div className="px-4 py-4">
+            <div className="h-7 w-32 bg-secondary/50 rounded mb-2 animate-pulse" />
+            <div className="h-4 w-24 bg-secondary/50 rounded animate-pulse" />
+          </div>
+        </header>
+        <section className="px-4 py-4">
+          <div className="bg-gradient-to-r from-secondary/30 to-secondary/20 rounded-2xl border border-border/30 p-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-secondary/50 animate-pulse" />
+              <div className="flex-1">
+                <div className="h-4 w-24 bg-secondary/50 rounded mb-2 animate-pulse" />
+                <div className="h-7 w-16 bg-secondary/50 rounded mb-2 animate-pulse" />
+                <div className="h-2 w-full bg-secondary/50 rounded-full animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </section>
+        <div className="px-4 py-2 space-y-3">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="p-4 rounded-2xl bg-card border border-border/50">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-secondary/50 animate-pulse" />
+                <div className="flex-1">
+                  <div className="h-5 w-3/4 bg-secondary/50 rounded mb-2 animate-pulse" />
+                  <div className="h-3 w-1/2 bg-secondary/50 rounded animate-pulse" />
+                </div>
+                <div className="h-8 w-20 bg-secondary/50 rounded-lg animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

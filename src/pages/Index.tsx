@@ -19,6 +19,7 @@ import { AchievementsScreen } from '@/components/achievements/AchievementsScreen
 import { AISchedulerModal } from '@/components/scheduler/AISchedulerModal';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { DailyCheckinModal } from '@/components/checkin/DailyCheckinModal';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { mockDayStatuses } from '@/data/mockData';
 import { Task, TaskStatus, TaskType } from '@/types/focusforge';
 import { useToast } from '@/hooks/use-toast';
@@ -191,13 +192,29 @@ const Index = () => {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'goals':
-        return <GoalsScreen onOpenPlanner={() => setShowGoalPlanner(true)} />;
+        return (
+          <ErrorBoundary>
+            <GoalsScreen onOpenPlanner={() => setShowGoalPlanner(true)} />
+          </ErrorBoundary>
+        );
       case 'raids':
-        return <RaidsScreen />;
+        return (
+          <ErrorBoundary>
+            <RaidsScreen />
+          </ErrorBoundary>
+        );
       case 'stats':
-        return <AchievementsScreen />;
+        return (
+          <ErrorBoundary>
+            <AchievementsScreen />
+          </ErrorBoundary>
+        );
       case 'settings':
-        return <SettingsScreen />;
+        return (
+          <ErrorBoundary>
+            <SettingsScreen />
+          </ErrorBoundary>
+        );
       default:
         return (
           <>
@@ -241,7 +258,27 @@ const Index = () => {
                 {tasks.filter(t => t.status === 'completed').length}/{tasks.length} completed
               </span>
             </div>
-            <Timeline tasks={tasks} onTaskClick={handleTaskClick} />
+            {tasksLoading ? (
+              <div className="space-y-3 px-4 py-6">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="ml-14 mr-4 p-4 rounded-xl bg-card border border-border/50">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="h-5 w-3/4 bg-secondary/50 rounded mb-2 animate-pulse" />
+                        <div className="h-3 w-1/2 bg-secondary/50 rounded animate-pulse" />
+                      </div>
+                      <div className="w-16 h-6 bg-secondary/50 rounded-full animate-pulse" />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-4 bg-secondary/50 rounded animate-pulse" />
+                      <div className="w-16 h-4 bg-secondary/50 rounded animate-pulse" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Timeline tasks={tasks} onTaskClick={handleTaskClick} />
+            )}
             <FloatingActionButton timeOfDay={timeOfDay} onAction={handleFABAction} />
           </>
         );
