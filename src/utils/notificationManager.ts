@@ -1,7 +1,7 @@
 // Browser Push Notifications for FocusForge
 // Uses native Notification API - works on all modern browsers
 
-export type NotificationType = 'task_reminder' | 'raid_alert' | 'streak_warning' | 'challenge' | 'achievement';
+export type NotificationType = 'task_reminder' | 'raid_alert' | 'streak_warning' | 'challenge' | 'achievement' | 'affirmation';
 
 interface NotificationConfig {
   title: string;
@@ -116,6 +116,8 @@ class NotificationManager {
         return [100, 50, 100];
       case 'achievement':
         return [200, 50, 100, 50, 300];
+      case 'affirmation':
+        return [150, 75, 150];
       default:
         return [200];
     }
@@ -198,6 +200,18 @@ class NotificationManager {
   }
 
   /**
+   * Send affirmation reminder
+   */
+  async sendAffirmationReminder(affirmationText: string): Promise<void> {
+    await this.send('affirmation', {
+      title: '✨ Affirmation Time',
+      body: affirmationText.length > 60 ? affirmationText.substring(0, 60) + '...' : affirmationText,
+      requireInteraction: false,
+      tag: 'affirmation'
+    });
+  }
+
+  /**
    * Send custom notification
    */
   async sendCustom(title: string, body: string, requireInteraction = false): Promise<void> {
@@ -249,6 +263,7 @@ export const useNotifications = () => {
     sendStreakWarning: notificationManager.sendStreakWarning.bind(notificationManager),
     sendChallenge: notificationManager.sendChallenge.bind(notificationManager),
     sendAchievement: notificationManager.sendAchievement.bind(notificationManager),
+    sendAffirmationReminder: notificationManager.sendAffirmationReminder.bind(notificationManager),
     sendTest: notificationManager.sendTest.bind(notificationManager),
   };
 };
