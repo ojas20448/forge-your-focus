@@ -1,7 +1,9 @@
 import React from 'react';
-import { Book, Brain, Dumbbell, Eye, Coffee, Check, AlertTriangle, Clock } from 'lucide-react';
+import { Book, Brain, Dumbbell, Eye, Coffee, Check, AlertTriangle, Clock, Shield } from 'lucide-react';
 import { Task, TaskStatus, TaskType } from '@/types/focusforge';
 import { cn } from '@/lib/utils';
+import { DecayIndicator } from '@/components/decay/DecayIndicator';
+import { useCommitmentContracts } from '@/hooks/useCommitmentContracts';
 
 interface TaskBlockProps {
   task: Task;
@@ -31,8 +33,11 @@ const priorityColors = {
 };
 
 export const TaskBlock: React.FC<TaskBlockProps> = ({ task, onTaskClick }) => {
+  const { getContractForTask } = useCommitmentContracts();
+  const contract = getContractForTask(task.id);
   const completedSubtasks = task.subtasks?.filter(s => s.completed).length || 0;
   const totalSubtasks = task.subtasks?.length || 0;
+  const hasDecay = task.decay_level > 0 && task.status !== 'completed';
 
   const getStatusIcon = () => {
     switch (task.status) {
@@ -53,7 +58,8 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({ task, onTaskClick }) => {
       className={cn(
         "w-full text-left ml-14 mr-4 p-4 rounded-2xl border transition-all duration-300 bg-card/80 backdrop-blur-sm",
         statusStyles[task.status],
-        task.status === 'active' && 'scale-[1.02]'
+        task.status === 'active' && 'scale-[1.02]',
+        hasDecay && 'border-destructive/30'
       )}
     >
       <div className="flex items-start gap-3">
@@ -84,7 +90,7 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({ task, onTaskClick }) => {
           </div>
 
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="font-mono-time">
+            <span className="text-xs font-mono-time">
               {task.suggested_block.start} - {task.suggested_block.end}
             </span>
             <span>•</span>
@@ -97,6 +103,18 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({ task, onTaskClick }) => {
             )}
           </div>
 
+          {/* Decay and Contract indicators */}
+          <div className="flex items-center gap-2 mt-2">
+            {hasDecay && (
+              <DecayIndicator decayLevel={task.decay_level} size="sm" />
+            )}
+            {contract && (
+              <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                <Shield className="w-3 h-3" />
+                <span>{contract.staked_xp} XP</span>
+              </div>
+            )}
+          </div>
           {/* Subtasks progress */}
           {totalSubtasks > 0 && (
             <div className="mt-2 flex items-center gap-2">

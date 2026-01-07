@@ -19,6 +19,7 @@ import { AchievementsScreen } from '@/components/achievements/AchievementsScreen
 import { AISchedulerModal } from '@/components/scheduler/AISchedulerModal';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { DailyCheckinModal } from '@/components/checkin/DailyCheckinModal';
+import { TaskDetailModal } from '@/components/tasks/TaskDetailModal';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { mockDayStatuses } from '@/data/mockData';
 import { Task, TaskStatus, TaskType } from '@/types/focusforge';
@@ -28,6 +29,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { useTasks, DbTask } from '@/hooks/useTasks';
 import { useGoals } from '@/hooks/useGoals';
 import { useDailyCheckin } from '@/hooks/useDailyCheckin';
+import { useTaskDecay } from '@/hooks/useTaskDecay';
 import { Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -50,12 +52,21 @@ const Index = () => {
   const [showGoalPlanner, setShowGoalPlanner] = useState(false);
   const [showSchedulerModal, setShowSchedulerModal] = useState(false);
   const [showCheckinModal, setShowCheckinModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const { toast } = useToast();
 
   // Fetch tasks and goals from database
   const { tasks: dbTasks, loading: tasksLoading, refetch: refetchTasks } = useTasks(selectedDate);
   const { goals, yearGoals, loading: goalsLoading } = useGoals();
   const { hasCheckedInToday, loading: checkinLoading } = useDailyCheckin();
+  const { checkAndApplyDecay } = useTaskDecay();
+
+  // Check for decayed tasks on mount
+  useEffect(() => {
+    if (user && !tasksLoading) {
+      checkAndApplyDecay();
+    }
+  }, [user, tasksLoading, checkAndApplyDecay]);
 
   // Show daily check-in modal if not checked in today
   useEffect(() => {
@@ -77,7 +88,7 @@ const Index = () => {
     status: (dbTask.is_completed ? 'completed' : 'pending') as TaskStatus,
     duration_min: dbTask.duration_minutes,
     priority: (dbTask.priority || 'medium') as 'low' | 'medium' | 'high',
-    decay_level: 0,
+    decay_level: dbTask.decay_level || 0,
     suggested_block: {
       start: dbTask.start_time.slice(0, 5),
       end: dbTask.end_time.slice(0, 5),
@@ -139,8 +150,14 @@ const Index = () => {
   }
 
   const handleTaskClick = (task: Task) => {
-    if (task.status === 'pending' || task.status === 'active') {
-      setActiveFocusTask(task);
+    // Open task detail modal instead of immediately starting focus
+    setSelectedTask(task);
+  };
+
+  const handleStartFocusFromDetail = () => {
+    if (selectedTask && (selectedTask.status === 'pending' || selectedTask.status === 'active')) {
+      setActiveFocusTask(selectedTask);
+      setSelectedTask(null);
     }
   };
 
@@ -301,6 +318,17 @@ const Index = () => {
         isOpen={showCheckinModal}
         onClose={() => setShowCheckinModal(false)}
       />
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          isOpen={!!selectedTask}
+          onClose={() => {
+            setSelectedTask(null);
+            refetchTasks();
+          }}
+          onStartFocus={handleStartFocusFromDetail}
+        />
+      )}
     </MobileLayout>
   );
 };
