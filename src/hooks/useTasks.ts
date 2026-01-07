@@ -20,6 +20,8 @@ export interface DbTask {
   user_id: string;
   created_at: string;
   updated_at: string;
+  decay_level?: number | null;
+  decay_started_at?: string | null;
 }
 
 export interface CreateTaskInput {
