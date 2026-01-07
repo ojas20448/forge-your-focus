@@ -77,6 +77,110 @@ export type Database = {
         }
         Relationships: []
       }
+      anti_cheat_challenges: {
+        Row: {
+          answered_at: string | null
+          challenge_data: Json
+          challenge_type: string
+          created_at: string
+          focus_session_id: string | null
+          id: string
+          response_time_ms: number | null
+          user_id: string
+          was_passed: boolean | null
+        }
+        Insert: {
+          answered_at?: string | null
+          challenge_data: Json
+          challenge_type: string
+          created_at?: string
+          focus_session_id?: string | null
+          id?: string
+          response_time_ms?: number | null
+          user_id: string
+          was_passed?: boolean | null
+        }
+        Update: {
+          answered_at?: string | null
+          challenge_data?: Json
+          challenge_type?: string
+          created_at?: string
+          focus_session_id?: string | null
+          id?: string
+          response_time_ms?: number | null
+          user_id?: string
+          was_passed?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anti_cheat_challenges_focus_session_id_fkey"
+            columns: ["focus_session_id"]
+            isOneToOne: false
+            referencedRelation: "focus_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commitment_contracts: {
+        Row: {
+          buddy_email: string | null
+          buddy_user_id: string | null
+          created_at: string
+          deadline: string
+          goal_id: string | null
+          id: string
+          penalty_applied: boolean | null
+          resolved_at: string | null
+          staked_xp: number
+          status: string
+          task_id: string | null
+          user_id: string
+        }
+        Insert: {
+          buddy_email?: string | null
+          buddy_user_id?: string | null
+          created_at?: string
+          deadline: string
+          goal_id?: string | null
+          id?: string
+          penalty_applied?: boolean | null
+          resolved_at?: string | null
+          staked_xp?: number
+          status?: string
+          task_id?: string | null
+          user_id: string
+        }
+        Update: {
+          buddy_email?: string | null
+          buddy_user_id?: string | null
+          created_at?: string
+          deadline?: string
+          goal_id?: string | null
+          id?: string
+          penalty_applied?: boolean | null
+          resolved_at?: string | null
+          staked_xp?: number
+          status?: string
+          task_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commitment_contracts_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commitment_contracts_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_checkins: {
         Row: {
           checkin_date: string
@@ -410,9 +514,49 @@ export type Database = {
         }
         Relationships: []
       }
+      task_decay_events: {
+        Row: {
+          created_at: string
+          id: string
+          new_decay_level: number
+          previous_decay_level: number
+          task_id: string
+          user_id: string
+          xp_penalty: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          new_decay_level: number
+          previous_decay_level: number
+          task_id: string
+          user_id: string
+          xp_penalty?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          new_decay_level?: number
+          previous_decay_level?: number
+          task_id?: string
+          user_id?: string
+          xp_penalty?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_decay_events_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           created_at: string
+          decay_level: number | null
+          decay_started_at: string | null
           description: string | null
           duration_minutes: number
           end_time: string
@@ -431,6 +575,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          decay_level?: number | null
+          decay_started_at?: string | null
           description?: string | null
           duration_minutes: number
           end_time: string
@@ -449,6 +595,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          decay_level?: number | null
+          decay_started_at?: string | null
           description?: string | null
           duration_minutes?: number
           end_time?: string
