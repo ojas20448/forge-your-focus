@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Bell, Shield, Moon, Sun, Zap, Clock, ChevronRight, LogOut, HelpCircle, FileText, Palette, Coffee } from 'lucide-react';
+import { User, Bell, Shield, Moon, Sun, Zap, Clock, ChevronRight, LogOut, HelpCircle, FileText, Palette, Coffee, Camera, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { EnergyProfile } from '@/types/focusforge';
 import { useNotifications } from '@/utils/notificationManager';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { useAvatarUpload } from '@/hooks/useAvatarUpload';
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -57,7 +58,9 @@ const SettingItem: React.FC<SettingItemProps> = ({
 export const SettingsScreen: React.FC = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { profile } = useProfile();
+  const { profile, refetch: refetchProfile } = useProfile();
+  const { uploadAvatar, uploading: avatarUploading } = useAvatarUpload();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [notifications, setNotifications] = useState(false);
   const [strictMode, setStrictMode] = useState(true);
   const [energyProfile, setEnergyProfile] = useState<EnergyProfile>('morning_lark');
@@ -68,6 +71,18 @@ export const SettingsScreen: React.FC = () => {
     }
     return true;
   });
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await uploadAvatar(file);
+      refetchProfile();
+    }
+  };
 
   const { isSupported, checkPermission, requestPermission, sendTest } = useNotifications();
 
@@ -115,9 +130,36 @@ export const SettingsScreen: React.FC = () => {
       {/* Profile section */}
       <section className="px-4 py-4">
         <div className="bg-card rounded-2xl border border-border/50 p-4 flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center text-3xl">
-            🎯
-          </div>
+          {/* Avatar with upload */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/*"
+            className="hidden"
+          />
+          <button
+            onClick={handleAvatarClick}
+            disabled={avatarUploading}
+            className="relative w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center text-3xl overflow-hidden group"
+          >
+            {profile?.avatar_url ? (
+              <img 
+                src={profile.avatar_url} 
+                alt="Avatar" 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              '🎯'
+            )}
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              {avatarUploading ? (
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              ) : (
+                <Camera className="w-5 h-5 text-white" />
+              )}
+            </div>
+          </button>
           <div className="flex-1">
             <h2 className="font-bold text-foreground text-lg">{profile?.display_name || user?.email?.split('@')[0] || 'Focus Warrior'}</h2>
             <p className="text-sm text-muted-foreground">Level {profile?.level || 1} • {profile?.current_streak || 0} day streak</p>
@@ -126,7 +168,9 @@ export const SettingsScreen: React.FC = () => {
               <span className="text-xs text-xp-glow font-mono-time">{profile?.total_xp?.toLocaleString() || 0} XP</span>
             </div>
           </div>
-          <Button variant="outline" size="sm">Edit</Button>
+          <Button variant="outline" size="sm" onClick={handleAvatarClick}>
+            {avatarUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Edit'}
+          </Button>
         </div>
       </section>
 
