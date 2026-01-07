@@ -6,6 +6,7 @@ import { Task } from '@/types/focusforge';
 import { cameraManager, DetectionResult } from '@/utils/cameraManager';
 import { useFocusSessions } from '@/hooks/useFocusSessions';
 import { useTasks } from '@/hooks/useTasks';
+import { useDailyCheckin } from '@/hooks/useDailyCheckin';
 
 interface FocusSessionScreenProps {
   task: Task;
@@ -33,6 +34,7 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
   
   const { saveFocusSession, updateUserXP } = useFocusSessions();
   const { completeTask } = useTasks();
+  const { updateCheckin, checkIn } = useDailyCheckin();
 
   // Initialize real camera for verification
   useEffect(() => {
@@ -125,6 +127,9 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
     const finalXP = Math.floor(xpEarned);
     const wasCompleted = timeRemaining <= 0;
 
+    // Ensure daily checkin exists
+    await checkIn();
+
     // Save session to database
     await saveFocusSession({
       task_id: task.id,
@@ -138,6 +143,13 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
 
     // Update user XP
     await updateUserXP(finalXP);
+
+    // Update daily checkin stats
+    await updateCheckin({
+      focus_minutes: actualMinutes,
+      tasks_completed: wasCompleted ? 1 : 0,
+      xp_earned: finalXP,
+    });
 
     // Mark task as completed if finished
     if (wasCompleted) {
