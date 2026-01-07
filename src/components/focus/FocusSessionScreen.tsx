@@ -9,6 +9,7 @@ import { useTasks } from '@/hooks/useTasks';
 import { useDailyCheckin } from '@/hooks/useDailyCheckin';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { AntiCheatChallenge } from './AntiCheatChallenge';
+import { MLVerificationPanel } from './MLVerificationPanel';
 
 interface FocusSessionScreenProps {
   task: Task;
@@ -31,6 +32,7 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
   const [cameraReady, setCameraReady] = useState(false);
   const [breakCount, setBreakCount] = useState(0);
   const [totalBreakSeconds, setTotalBreakSeconds] = useState(0);
+  const [detectionResult, setDetectionResult] = useState<DetectionResult | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const startTimeRef = useRef(Date.now());
   
@@ -55,13 +57,18 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
           setCameraReady(true);
         }
 
-        // Start motion detection for verification
+        // Start ML-powered detection with verification score
         cameraManager.startDetection((result: DetectionResult) => {
-          setIsVerified(result.faceDetected && result.lookingAtScreen);
-          if (!result.faceDetected || !result.lookingAtScreen) {
+          setDetectionResult(result);
+          // Consider verified if score is above 60%
+          const isCurrentlyVerified = result.verificationScore >= 60;
+          setIsVerified(isCurrentlyVerified);
+          
+          // Warn if score drops below 50%
+          if (result.verificationScore < 50) {
             setVerificationWarnings(prev => prev + 1);
           }
-        }, 5000); // Check every 5 seconds
+        }, 3000); // Check every 3 seconds with ML
 
       } catch (error) {
         setCameraError(error instanceof Error ? error.message : 'Failed to access camera');
@@ -223,43 +230,40 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
         </div>
       </header>
 
-      {/* Camera preview - REAL CAMERA */}
+      {/* Camera preview - REAL CAMERA with ML Detection */}
       {task.verification_required && (
-        <div className="relative mx-4 mt-4 h-48 rounded-2xl bg-secondary/50 border border-border overflow-hidden">
-          {cameraError ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
-              <AlertTriangle className="w-8 h-8 text-accent mb-2" />
-              <p className="text-sm text-accent font-medium mb-1">Camera Error</p>
-              <p className="text-xs text-muted-foreground">{cameraError}</p>
-            </div>
-          ) : !cameraReady ? (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Camera className="w-8 h-8 text-muted-foreground animate-pulse" />
-            </div>
-          ) : (
-            <video 
-              ref={videoRef}
-              className="w-full h-full object-cover"
-              autoPlay
-              playsInline
-              muted
-            />
-          )}
-          {/* Verification overlay */}
-          <div className={cn(
-            "absolute inset-0 border-4 rounded-2xl transition-colors duration-300 pointer-events-none",
-            isVerified ? "border-success/50" : "border-accent/50"
-          )} />
-          {/* Face detection indicator */}
-          <div className="absolute top-3 left-3 flex items-center gap-2 bg-background/80 backdrop-blur-sm px-2 py-1 rounded-lg">
-            <Eye className={cn(
-              "w-4 h-4",
-              isVerified ? "text-success" : "text-accent"
+        <div className="mx-4 mt-4 space-y-3">
+          <div className="relative h-48 rounded-2xl bg-secondary/50 border border-border overflow-hidden">
+            {cameraError ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+                <AlertTriangle className="w-8 h-8 text-accent mb-2" />
+                <p className="text-sm text-accent font-medium mb-1">Camera Error</p>
+                <p className="text-xs text-muted-foreground">{cameraError}</p>
+              </div>
+            ) : !cameraReady ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Camera className="w-8 h-8 text-muted-foreground animate-pulse" />
+              </div>
+            ) : (
+              <video 
+                ref={videoRef}
+                className="w-full h-full object-cover"
+                autoPlay
+                playsInline
+                muted
+              />
+            )}
+            {/* Verification overlay with score-based color */}
+            <div className={cn(
+              "absolute inset-0 border-4 rounded-2xl transition-colors duration-300 pointer-events-none",
+              detectionResult?.verificationScore && detectionResult.verificationScore >= 80 ? "border-success/50" :
+              detectionResult?.verificationScore && detectionResult.verificationScore >= 60 ? "border-warning/50" :
+              "border-accent/50"
             )} />
-            <span className="text-xs font-medium text-foreground">
-              {isVerified ? "Detected ✓" : "Not detected"}
-            </span>
           </div>
+
+          {/* ML Verification Panel */}
+          <MLVerificationPanel detectionResult={detectionResult} showDetails={true} />
         </div>
       )}
 
