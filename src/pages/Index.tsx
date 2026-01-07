@@ -148,6 +148,7 @@ const Index = () => {
         isOpen={showSchedulerModal} 
         onClose={() => setShowSchedulerModal(false)}
         onTasksGenerated={handleTasksGenerated}
+        energyProfile={mockUserStats.energy_profile}
       />
     </MobileLayout>
   );

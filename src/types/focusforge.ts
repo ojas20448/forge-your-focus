@@ -55,6 +55,14 @@ export interface UserStats {
   manifestation_streak: number;
   weekly_focus_hours: number;
   weekly_goal_hours: number;
+  energy_profile: EnergyProfile;
+  debt_score: number; // 0-100, higher = more overdue tasks
+}
+
+export interface UserProfile {
+  energy_profile: EnergyProfile;
+  peak_hours: { start: number; end: number }; // 0-23 hours
+  low_energy_hours: { start: number; end: number };
 }
 
 export interface DayStatus {

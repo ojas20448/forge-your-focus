@@ -149,6 +149,14 @@ export const mockUserStats: UserStats = {
   manifestation_streak: 8,
   weekly_focus_hours: 32,
   weekly_goal_hours: 50,
+  energy_profile: 'morning_lark',
+  debt_score: 32, // 32% debt from rotten tasks
+};
+
+export const energySchedulingProfiles = {
+  morning_lark: { peak: { start: 6, end: 12 }, low: { start: 18, end: 23 } },
+  night_owl: { peak: { start: 18, end: 23 }, low: { start: 6, end: 12 } },
+  balanced: { peak: { start: 9, end: 17 }, low: { start: 0, end: 6 } },
 };
 
 export const mockDayStatuses: Record<string, DayStatus> = {

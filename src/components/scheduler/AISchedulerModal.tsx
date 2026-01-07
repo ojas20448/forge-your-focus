@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { X, Mic, Send, Sparkles, Loader2, Clock, Target, Zap, Check } from 'lucide-react';
+import { X, Mic, Send, Sparkles, Loader2, Clock, Target, Zap, Check, Sun, Moon, Coffee, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { EnergyProfile, Task } from '@/types/focusforge';
+import { energySchedulingProfiles } from '@/data/mockData';
+import { createGeminiScheduler, GeneratedTask as GeminiTask } from '@/utils/geminiScheduler';
 
 interface GeneratedTask {
   title: string;
@@ -15,18 +18,26 @@ interface AISchedulerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onTasksGenerated?: (tasks: GeneratedTask[]) => void;
+  energyProfile?: EnergyProfile;
+  existingTasks?: Task[];
+  goals?: Array<{ title: string }>;
 }
 
 export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
   isOpen,
   onClose,
-  onTasksGenerated
+  onTasksGenerated,
+  energyProfile = 'balanced',
+  existingTasks = [],
+  goals = []
 }) => {
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [generatedTasks, setGeneratedTasks] = useState<GeneratedTask[]>([]);
   const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [useAI, setUseAI] = useState(true); // Toggle between AI and mock
 
   const examplePrompts = [
     "Study Physics for 2 hours",
@@ -34,33 +45,82 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
     "Deep work on project + gym in evening"
   ];
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!input.trim()) return;
     
     setIsProcessing(true);
+    setError(null);
     
-    // Simulate AI processing
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    const useRealAI = useAI && apiKey && apiKey !== 'YOUR_API_KEY_HERE';
+
+    if (useRealAI) {
+      // Use real Gemini AI
+      try {
+        const scheduler = createGeminiScheduler(apiKey);
+        const aiTasks = await scheduler.generateSchedule({
+          userInput: input,
+          energyProfile,
+          existingTasks: existingTasks.map(t => ({
+            title: t.title,
+            time: `${t.suggested_block.start} - ${t.suggested_block.end}`
+          })),
+          goals: goals,
+          currentTime: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        });
+
+        // Convert Gemini tasks to our format
+        const converted: GeneratedTask[] = aiTasks.map(task => ({
+          title: task.title,
+          duration: task.duration,
+          priority: task.priority,
+          suggestedTime: task.suggestedTime,
+          linkedGoal: task.linkedGoal
+        }));
+
+        setGeneratedTasks(converted);
+        setSelectedTasks(converted.map((_, i) => i));
+        setIsProcessing(false);
+      } catch (err) {
+        console.error('AI scheduling error:', err);
+        setError(err instanceof Error ? err.message : 'AI scheduling failed');
+        setIsProcessing(false);
+        // Fallback to mock
+        generateMockTasks();
+      }
+    } else {
+      // Use mock scheduling (fallback)
+      generateMockTasks();
+    }
+  };
+
+  const generateMockTasks = () => {
     setTimeout(() => {
+      const profile = energySchedulingProfiles[energyProfile];
+      const peakStart = profile.peak.start;
+      const peakEnd = profile.peak.end;
+      
+      // Generate tasks scheduled based on energy profile
       const mockTasks: GeneratedTask[] = [
         {
           title: "Study Physics - Mechanics",
           duration: 90,
           priority: 'high',
-          suggestedTime: "09:00 - 10:30",
+          suggestedTime: `${peakStart.toString().padStart(2, '0')}:00 - ${(peakStart + 1.5).toString().padStart(2, '0')}:30`,
           linkedGoal: "Crack JEE 2026"
         },
         {
           title: "Math Worksheet - Calculus",
           duration: 60,
           priority: 'medium',
-          suggestedTime: "11:00 - 12:00",
+          suggestedTime: `${(peakStart + 2).toString().padStart(2, '0')}:00 - ${(peakStart + 3).toString().padStart(2, '0')}:00`,
           linkedGoal: "Crack JEE 2026"
         },
         {
           title: "Chemistry Revision",
           duration: 45,
           priority: 'medium',
-          suggestedTime: "14:00 - 14:45"
+          suggestedTime: `${(peakEnd - 1).toString().padStart(2, '0')}:00 - ${(peakEnd - 0.25).toString().padStart(2, '0')}:45`
         }
       ];
       
@@ -119,7 +179,11 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-foreground">AI Scheduler</h2>
-              <p className="text-xs text-muted-foreground">Tell me what you need to do</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                {energyProfile === 'morning_lark' && <><Sun className="w-3 h-3" /> Morning Lark Mode</>}
+                {energyProfile === 'night_owl' && <><Moon className="w-3 h-3" /> Night Owl Mode</>}
+                {energyProfile === 'balanced' && <><Coffee className="w-3 h-3" /> Balanced Mode</>}
+              </p>
             </div>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -128,6 +192,20 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
         </div>
 
         <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(85vh-180px)]">
+          {/* Error Display */}
+          {error && (
+            <div className="bg-accent/10 border border-accent/30 rounded-xl p-3 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-accent">AI Scheduling Failed</p>
+                <p className="text-xs text-muted-foreground mt-1">{error}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Using fallback scheduling. Add your Gemini API key to .env for AI features.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Example Prompts */}
           {!generatedTasks.length && !isProcessing && (
             <div className="space-y-2">

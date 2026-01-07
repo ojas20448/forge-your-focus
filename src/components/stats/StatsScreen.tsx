@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Target, Zap, TrendingUp, Calendar, Flame, Brain, BarChart3 } from 'lucide-react';
+import { Clock, Target, Zap, TrendingUp, Calendar, Flame, Brain, BarChart3, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface StatCardProps {
@@ -102,6 +102,57 @@ export const StatsScreen: React.FC = () => {
             value={23}
             suffix="days"
           />
+        </div>
+      </section>
+
+      {/* Debt Score Alert */}
+      <section className="px-4 py-2">
+        <div className={cn(
+          "bg-card rounded-2xl border p-4",
+          32 > 50 ? "border-accent/50 bg-accent/5" : 
+          32 > 25 ? "border-warning/50 bg-warning/5" : "border-success/50 bg-success/5"
+        )}>
+          <div className="flex items-start gap-3">
+            <div className={cn(
+              "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+              32 > 50 ? "bg-accent/20" : 32 > 25 ? "bg-warning/20" : "bg-success/20"
+            )}>
+              <AlertTriangle className={cn(
+                "w-5 h-5",
+                32 > 50 ? "text-accent" : 32 > 25 ? "text-warning" : "text-success"
+              )} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-sm font-semibold text-foreground">Task Debt Score</h3>
+                <span className={cn(
+                  "text-xl font-bold font-mono-time",
+                  32 > 50 ? "text-accent" : 32 > 25 ? "text-warning" : "text-success"
+                )}>
+                  32%
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                {32 > 50 ? "⚠️ Critical! Many overdue tasks. Complete them to avoid XP penalties." :
+                 32 > 25 ? "⚡ Moderate debt. Focus on clearing rotten tasks this week." :
+                 "✨ Great! Low debt score. Keep up the momentum!"}
+              </p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Rotten Tasks</span>
+                  <span className="font-medium text-accent">3 tasks</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Overdue Hours</span>
+                  <span className="font-medium text-warning">4.5 hours</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Potential XP Loss</span>
+                  <span className="font-medium text-accent">-180 XP</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

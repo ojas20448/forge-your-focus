@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Pause, Play, SkipForward, AlertTriangle, CheckCircle2, X, Eye, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Task } from '@/types/focusforge';
+import { cameraManager, DetectionResult } from '@/utils/cameraManager';
 
 interface FocusSessionScreenProps {
   task: Task;
@@ -17,10 +18,50 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
 }) => {
   const [timeRemaining, setTimeRemaining] = useState(task.duration_min * 60);
   const [isPaused, setIsPaused] = useState(false);
-  const [isVerified, setIsVerified] = useState(true);
+  const [isVerified, setIsVerified] = useState(false);
   const [verificationWarnings, setVerificationWarnings] = useState(0);
   const [showChallenge, setShowChallenge] = useState(false);
   const [xpEarned, setXpEarned] = useState(0);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Initialize real camera for verification
+  useEffect(() => {
+    if (!task.verification_required) {
+      setIsVerified(true);
+      return;
+    }
+
+    const initCamera = async () => {
+      try {
+        const stream = await cameraManager.initialize();
+        if (videoRef.current) {
+          cameraManager.attachToVideo(videoRef.current);
+          setCameraReady(true);
+        }
+
+        // Start motion detection for verification
+        cameraManager.startDetection((result: DetectionResult) => {
+          setIsVerified(result.faceDetected && result.lookingAtScreen);
+          if (!result.faceDetected || !result.lookingAtScreen) {
+            setVerificationWarnings(prev => prev + 1);
+          }
+        }, 5000); // Check every 5 seconds
+
+      } catch (error) {
+        setCameraError(error instanceof Error ? error.message : 'Failed to access camera');
+        setIsVerified(false);
+      }
+    };
+
+    initCamera();
+
+    // Cleanup on unmount
+    return () => {
+      cameraManager.cleanup();
+    };
+  }, [task.verification_required]);
 
   // Timer countdown
   useEffect(() => {
@@ -48,28 +89,15 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
     if (!task.verification_required) return;
     
     const challengeInterval = setInterval(() => {
-      if (!isPaused && Math.random() > 0.7) {
+      if (!isPaused && Math.random() > 0.85) { // 15% chance
         setShowChallenge(true);
       }
-    }, 30000); // Every 30 seconds, 30% chance
+    }, 45000); // Every 45 seconds
 
     return () => clearInterval(challengeInterval);
   }, [isPaused, task.verification_required]);
 
-  // Simulate verification status changes
-  useEffect(() => {
-    if (!task.verification_required) return;
-
-    const verifyInterval = setInterval(() => {
-      const newStatus = Math.random() > 0.15; // 85% verified
-      setIsVerified(newStatus);
-      if (!newStatus) {
-        setVerificationWarnings(prev => prev + 1);
-      }
-    }, 5000);
-
-    return () => clearInterval(verifyInterval);
-  }, [task.verification_required]);
+  // Remove old simulated verification - now using real camera
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -110,25 +138,41 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
         </div>
       </header>
 
-      {/* Camera preview (simulated) */}
+      {/* Camera preview - REAL CAMERA */}
       {task.verification_required && (
-        <div className="relative mx-4 mt-4 h-32 rounded-2xl bg-secondary/50 border border-border overflow-hidden">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Camera className="w-8 h-8 text-muted-foreground" />
-          </div>
+        <div className="relative mx-4 mt-4 h-48 rounded-2xl bg-secondary/50 border border-border overflow-hidden">
+          {cameraError ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+              <AlertTriangle className="w-8 h-8 text-accent mb-2" />
+              <p className="text-sm text-accent font-medium mb-1">Camera Error</p>
+              <p className="text-xs text-muted-foreground">{cameraError}</p>
+            </div>
+          ) : !cameraReady ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Camera className="w-8 h-8 text-muted-foreground animate-pulse" />
+            </div>
+          ) : (
+            <video 
+              ref={videoRef}
+              className="w-full h-full object-cover"
+              autoPlay
+              playsInline
+              muted
+            />
+          )}
           {/* Verification overlay */}
           <div className={cn(
-            "absolute inset-0 border-4 rounded-2xl transition-colors duration-300",
+            "absolute inset-0 border-4 rounded-2xl transition-colors duration-300 pointer-events-none",
             isVerified ? "border-success/50" : "border-accent/50"
           )} />
           {/* Face detection indicator */}
-          <div className="absolute top-3 left-3 flex items-center gap-2">
+          <div className="absolute top-3 left-3 flex items-center gap-2 bg-background/80 backdrop-blur-sm px-2 py-1 rounded-lg">
             <Eye className={cn(
               "w-4 h-4",
               isVerified ? "text-success" : "text-accent"
             )} />
             <span className="text-xs font-medium text-foreground">
-              Face {isVerified ? "detected" : "not detected"}
+              {isVerified ? "Detected ✓" : "Not detected"}
             </span>
           </div>
         </div>
