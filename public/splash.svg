@@ -1,0 +1,46 @@
+<svg width="2732" height="2732" viewBox="0 0 2732 2732" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="splashBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="hammerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="2732" height="2732" fill="url(#splashBg)"/>
+  
+  <!-- Logo Container -->
+  <g transform="translate(866, 866)">
+    <!-- Anvil Base -->
+    <path d="M 360 640 L 360 760 L 664 760 L 664 640 Z" fill="#1f2937" opacity="0.8"/>
+    
+    <!-- Anvil Top -->
+    <path d="M 320 560 L 320 640 L 704 640 L 704 560 L 680 540 L 640 540 L 620 520 L 404 520 L 384 540 L 344 540 Z" fill="#374151"/>
+    
+    <!-- Hammer Handle -->
+    <rect x="660" y="280" width="32" height="280" rx="16" fill="#8b4513" transform="rotate(-30 676 420)"/>
+    
+    <!-- Hammer Head -->
+    <rect x="710" y="240" width="120" height="60" rx="8" fill="url(#hammerGrad)" transform="rotate(-30 770 270)"/>
+    
+    <!-- Sparks -->
+    <path d="M 400 360 L 410 390 L 440 400 L 410 410 L 400 440 L 390 410 L 360 400 L 390 390 Z" fill="#fef3c7" opacity="0.9"/>
+    <path d="M 560 300 L 566 320 L 586 326 L 566 332 L 560 352 L 554 332 L 534 326 L 554 320 Z" fill="#fef3c7" opacity="0.9"/>
+    <path d="M 480 400 L 484 414 L 498 418 L 484 422 L 480 436 L 476 422 L 462 418 L 476 414 Z" fill="#fef3c7" opacity="0.9"/>
+    
+    <!-- Focus Circles -->
+    <circle cx="512" cy="400" r="100" fill="none" stroke="#fff" stroke-width="8" opacity="0.3"/>
+    <circle cx="512" cy="400" r="70" fill="none" stroke="#fff" stroke-width="6" opacity="0.5"/>
+    <circle cx="512" cy="400" r="40" fill="none" stroke="#fff" stroke-width="4" opacity="0.7"/>
+    <circle cx="512" cy="400" r="16" fill="#fff" opacity="0.9"/>
+  </g>
+  
+  <!-- App Name -->
+  <text x="1366" y="2200" font-family="sans-serif" font-size="100" font-weight="bold" fill="#fff" text-anchor="middle" opacity="0.9">FocusForge</text>
+  <text x="1366" y="2300" font-family="sans-serif" font-size="50" fill="#fff" text-anchor="middle" opacity="0.7">Gamified Productivity</text>
+</svg>

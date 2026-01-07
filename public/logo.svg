@@ -1,0 +1,42 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gradient Background -->
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="forgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#bgGrad)"/>
+  
+  <!-- Anvil/Forge Base -->
+  <path d="M 180 320 L 180 380 L 332 380 L 332 320 Z" fill="#1f2937" opacity="0.8"/>
+  
+  <!-- Anvil Top -->
+  <path d="M 160 280 L 160 320 L 352 320 L 352 280 L 340 270 L 320 270 L 310 260 L 202 260 L 192 270 L 172 270 Z" fill="#374151"/>
+  
+  <!-- Hammer Handle -->
+  <rect x="330" y="140" width="16" height="140" rx="8" fill="#8b4513" transform="rotate(-30 338 210)"/>
+  
+  <!-- Hammer Head -->
+  <rect x="355" y="120" width="60" height="30" rx="4" fill="url(#forgeGrad)" transform="rotate(-30 385 135)"/>
+  
+  <!-- Sparks/Stars -->
+  <path d="M 200 180 L 205 195 L 220 200 L 205 205 L 200 220 L 195 205 L 180 200 L 195 195 Z" fill="#fef3c7"/>
+  <path d="M 280 150 L 283 160 L 293 163 L 283 166 L 280 176 L 277 166 L 267 163 L 277 160 Z" fill="#fef3c7"/>
+  <path d="M 240 200 L 242 207 L 249 209 L 242 211 L 240 218 L 238 211 L 231 209 L 238 207 Z" fill="#fef3c7"/>
+  
+  <!-- Focus Target Circle -->
+  <circle cx="256" cy="200" r="50" fill="none" stroke="#fff" stroke-width="4" opacity="0.3"/>
+  <circle cx="256" cy="200" r="35" fill="none" stroke="#fff" stroke-width="3" opacity="0.5"/>
+  <circle cx="256" cy="200" r="20" fill="none" stroke="#fff" stroke-width="2" opacity="0.7"/>
+  <circle cx="256" cy="200" r="8" fill="#fff" opacity="0.9"/>
+  
+  <!-- Letter F (stylized) -->
+  <path d="M 240 350 L 240 365 L 245 365 L 245 358 L 255 358 L 255 353 L 245 353 L 245 350 L 258 350 L 258 345 L 240 345 Z" fill="#fff" opacity="0.9"/>
+</svg>
