@@ -121,6 +121,48 @@ export type Database = {
           },
         ]
       }
+      challenges: {
+        Row: {
+          challenge_type: string
+          challenged_id: string
+          challenger_id: string
+          created_at: string
+          current_value_challenged: number
+          current_value_challenger: number
+          ends_at: string
+          id: string
+          starts_at: string
+          status: string
+          target_value: number
+        }
+        Insert: {
+          challenge_type: string
+          challenged_id: string
+          challenger_id: string
+          created_at?: string
+          current_value_challenged?: number
+          current_value_challenger?: number
+          ends_at: string
+          id?: string
+          starts_at?: string
+          status?: string
+          target_value?: number
+        }
+        Update: {
+          challenge_type?: string
+          challenged_id?: string
+          challenger_id?: string
+          created_at?: string
+          current_value_challenged?: number
+          current_value_challenger?: number
+          ends_at?: string
+          id?: string
+          starts_at?: string
+          status?: string
+          target_value?: number
+        }
+        Relationships: []
+      }
       commitment_contracts: {
         Row: {
           buddy_email: string | null
@@ -264,6 +306,30 @@ export type Database = {
           },
         ]
       }
+      friendships: {
+        Row: {
+          created_at: string
+          friend_id: string
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          friend_id: string
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          friend_id?: string
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
           color: string | null
@@ -322,6 +388,7 @@ export type Database = {
       }
       leagues: {
         Row: {
+          color: string | null
           created_at: string
           icon: string | null
           id: string
@@ -331,6 +398,7 @@ export type Database = {
           tier: number
         }
         Insert: {
+          color?: string | null
           created_at?: string
           icon?: string | null
           id?: string
@@ -340,6 +408,7 @@ export type Database = {
           tier: number
         }
         Update: {
+          color?: string | null
           created_at?: string
           icon?: string | null
           id?: string
@@ -387,9 +456,13 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          current_league_tier: number | null
           current_streak: number | null
+          debt_score: number | null
           display_name: string | null
+          energy_profile: string | null
           id: string
+          last_activity_date: string | null
           level: number | null
           longest_streak: number | null
           onboarding_completed: boolean | null
@@ -399,13 +472,19 @@ export type Database = {
           updated_at: string
           user_id: string
           wake_time: string | null
+          weekly_hours_target: number | null
+          weekly_xp: number | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          current_league_tier?: number | null
           current_streak?: number | null
+          debt_score?: number | null
           display_name?: string | null
+          energy_profile?: string | null
           id?: string
+          last_activity_date?: string | null
           level?: number | null
           longest_streak?: number | null
           onboarding_completed?: boolean | null
@@ -415,13 +494,19 @@ export type Database = {
           updated_at?: string
           user_id: string
           wake_time?: string | null
+          weekly_hours_target?: number | null
+          weekly_xp?: number | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
+          current_league_tier?: number | null
           current_streak?: number | null
+          debt_score?: number | null
           display_name?: string | null
+          energy_profile?: string | null
           id?: string
+          last_activity_date?: string | null
           level?: number | null
           longest_streak?: number | null
           onboarding_completed?: boolean | null
@@ -431,6 +516,8 @@ export type Database = {
           updated_at?: string
           user_id?: string
           wake_time?: string | null
+          weekly_hours_target?: number | null
+          weekly_xp?: number | null
         }
         Relationships: []
       }
@@ -662,6 +749,7 @@ export type Database = {
           week_end: string
           week_start: string
           weekly_xp: number | null
+          xp_at_entry: number | null
         }
         Insert: {
           created_at?: string
@@ -672,6 +760,7 @@ export type Database = {
           week_end: string
           week_start: string
           weekly_xp?: number | null
+          xp_at_entry?: number | null
         }
         Update: {
           created_at?: string
@@ -682,6 +771,7 @@ export type Database = {
           week_end?: string
           week_start?: string
           weekly_xp?: number | null
+          xp_at_entry?: number | null
         }
         Relationships: [
           {
@@ -796,6 +886,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_weekly_leaderboard: {
+        Args: { week_start: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          rank: number
+          user_id: string
+          weekly_xp: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
