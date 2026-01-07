@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { useToast } from './use-toast';
 
 export interface League {
   id: string;
   name: string;
   tier: number;
   min_xp: number;
-  max_xp: number;
+  max_xp: number | null;
+  icon: string | null;
   color: string | null;
   created_at: string;
 }
@@ -17,8 +17,8 @@ export interface LeaderboardEntry {
   user_id: string;
   display_name: string | null;
   avatar_url: string | null;
-  total_xp: number;
-  level: number;
+  total_xp: number | null;
+  level: number | null;
   current_league_tier: number | null;
   weekly_xp?: number;
   rank?: number;
@@ -26,7 +26,6 @@ export interface LeaderboardEntry {
 
 export const useLeagues = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [leagues, setLeagues] = useState<League[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [myRank, setMyRank] = useState<number | null>(null);
@@ -43,7 +42,20 @@ export const useLeagues = () => {
         .order('tier', { ascending: true });
 
       if (fetchError) throw fetchError;
-      setLeagues(data || []);
+      
+      // Map to League interface with proper defaults
+      const mappedLeagues: League[] = (data || []).map(l => ({
+        id: l.id,
+        name: l.name,
+        tier: l.tier,
+        min_xp: l.min_xp,
+        max_xp: l.max_xp,
+        icon: l.icon,
+        color: l.color || '#6366f1',
+        created_at: l.created_at,
+      }));
+      
+      setLeagues(mappedLeagues);
     } catch (err) {
       console.error('Error fetching leagues:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch leagues');
@@ -56,14 +68,19 @@ export const useLeagues = () => {
       const { data, error: fetchError } = await supabase
         .from('profiles')
         .select('user_id, display_name, avatar_url, total_xp, level, current_league_tier')
-        .order('total_xp', { ascending: false })
+        .order('total_xp', { ascending: false, nullsFirst: false })
         .limit(100);
 
       if (fetchError) throw fetchError;
 
       // Add ranks
-      const withRanks = (data || []).map((entry, index) => ({
-        ...entry,
+      const withRanks: LeaderboardEntry[] = (data || []).map((entry, index) => ({
+        user_id: entry.user_id,
+        display_name: entry.display_name,
+        avatar_url: entry.avatar_url,
+        total_xp: entry.total_xp,
+        level: entry.level,
+        current_league_tier: entry.current_league_tier,
         rank: index + 1,
       }));
 
@@ -73,16 +90,24 @@ export const useLeagues = () => {
       if (user) {
         const myEntry = withRanks.find(e => e.user_id === user.id);
         if (myEntry) {
-          setMyRank(myEntry.rank);
+          setMyRank(myEntry.rank || null);
         } else {
           // User not in top 100, fetch their actual rank
-          const { count } = await supabase
+          const { data: myProfile } = await supabase
             .from('profiles')
-            .select('user_id', { count: 'exact', head: true })
-            .gt('total_xp', myEntry?.total_xp || 0);
-          
-          if (count !== null) {
-            setMyRank(count + 1);
+            .select('total_xp')
+            .eq('user_id', user.id)
+            .single();
+
+          if (myProfile) {
+            const { count } = await supabase
+              .from('profiles')
+              .select('user_id', { count: 'exact', head: true })
+              .gt('total_xp', myProfile.total_xp || 0);
+            
+            if (count !== null) {
+              setMyRank(count + 1);
+            }
           }
         }
       }
@@ -105,9 +130,11 @@ export const useLeagues = () => {
 
       if (!profile) return;
 
+      const userXp = profile.total_xp || 0;
+
       // Find appropriate league based on XP
       const currentLeague = leagues.find(
-        league => profile.total_xp >= league.min_xp && profile.total_xp <= league.max_xp
+        league => userXp >= league.min_xp && (league.max_xp === null || userXp <= league.max_xp)
       );
 
       setMyLeague(currentLeague || null);
@@ -119,13 +146,28 @@ export const useLeagues = () => {
           .update({ current_league_tier: currentLeague.tier })
           .eq('user_id', user.id);
 
+        // Get week boundaries for history
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const monday = new Date(now);
+        monday.setDate(now.getDate() + mondayOffset);
+        monday.setHours(0, 0, 0, 0);
+        
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        sunday.setHours(23, 59, 59, 999);
+
         // Record in history
         await supabase
           .from('user_league_history')
           .insert({
             user_id: user.id,
             league_id: currentLeague.id,
-            xp_at_entry: profile.total_xp,
+            week_start: monday.toISOString(),
+            week_end: sunday.toISOString(),
+            weekly_xp: 0,
+            xp_at_entry: userXp,
           });
       }
     } catch (err) {

@@ -295,7 +295,7 @@ const Index = () => {
                   is_active: yearGoals[0].is_active ?? true,
                   health_score: 70,
                 }} 
-                nextMilestone={yearGoals[0].monthly_milestones?.[0] || "Keep building momentum"} 
+                nextMilestone={(yearGoals[0].success_criteria as { milestones?: string[] } | null)?.milestones?.[0] || "Keep building momentum"} 
                 daysUntilMilestone={30} 
               />
             )}

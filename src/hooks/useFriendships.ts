@@ -13,8 +13,8 @@ export interface Friend {
     user_id: string;
     display_name: string | null;
     avatar_url: string | null;
-    level: number;
-    total_xp: number;
+    level: number | null;
+    total_xp: number | null;
   };
 }
 
@@ -61,63 +61,60 @@ export const useFriendships = () => {
     }
 
     try {
-      // Fetch accepted friends
-      const { data: acceptedFriends, error: friendsError } = await supabase
+      // Fetch accepted friends - get friend profiles separately
+      const { data: acceptedFriendships, error: friendsError } = await supabase
         .from('friendships')
-        .select(`
-          *,
-          friend_profile:profiles!friendships_friend_id_fkey(
-            user_id,
-            display_name,
-            avatar_url,
-            level,
-            total_xp
-          )
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .eq('status', 'accepted');
 
       if (friendsError) throw friendsError;
 
       // Fetch pending requests (received)
-      const { data: pending, error: pendingError } = await supabase
+      const { data: pendingFriendships, error: pendingError } = await supabase
         .from('friendships')
-        .select(`
-          *,
-          friend_profile:profiles!friendships_user_id_fkey(
-            user_id,
-            display_name,
-            avatar_url,
-            level,
-            total_xp
-          )
-        `)
+        .select('*')
         .eq('friend_id', user.id)
         .eq('status', 'pending');
 
       if (pendingError) throw pendingError;
 
       // Fetch sent requests
-      const { data: sent, error: sentError } = await supabase
+      const { data: sentFriendships, error: sentError } = await supabase
         .from('friendships')
-        .select(`
-          *,
-          friend_profile:profiles!friendships_friend_id_fkey(
-            user_id,
-            display_name,
-            avatar_url,
-            level,
-            total_xp
-          )
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .eq('status', 'pending');
 
       if (sentError) throw sentError;
 
-      setFriends(acceptedFriends || []);
-      setPendingRequests(pending || []);
-      setSentRequests(sent || []);
+      // Get all unique user IDs to fetch profiles
+      const allUserIds = new Set<string>();
+      acceptedFriendships?.forEach(f => allUserIds.add(f.friend_id));
+      pendingFriendships?.forEach(f => allUserIds.add(f.user_id));
+      sentFriendships?.forEach(f => allUserIds.add(f.friend_id));
+
+      // Fetch profiles for all users
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, display_name, avatar_url, level, total_xp')
+        .in('user_id', Array.from(allUserIds));
+
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+
+      // Map friendships with profiles
+      const mapFriendship = (f: typeof acceptedFriendships[0], profileId: string): Friend => ({
+        id: f.id,
+        user_id: f.user_id,
+        friend_id: f.friend_id,
+        status: f.status as 'pending' | 'accepted' | 'declined',
+        created_at: f.created_at,
+        friend_profile: profileMap.get(profileId),
+      });
+
+      setFriends((acceptedFriendships || []).map(f => mapFriendship(f, f.friend_id)));
+      setPendingRequests((pendingFriendships || []).map(f => mapFriendship(f, f.user_id)));
+      setSentRequests((sentFriendships || []).map(f => mapFriendship(f, f.friend_id)));
     } catch (err) {
       console.error('Error fetching friendships:', err);
       toast({
