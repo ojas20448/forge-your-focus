@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera, Pause, Play, SkipForward, AlertTriangle, CheckCircle2, X, Eye, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -7,6 +7,8 @@ import { cameraManager, DetectionResult } from '@/utils/cameraManager';
 import { useFocusSessions } from '@/hooks/useFocusSessions';
 import { useTasks } from '@/hooks/useTasks';
 import { useDailyCheckin } from '@/hooks/useDailyCheckin';
+import { useAntiCheat } from '@/hooks/useAntiCheat';
+import { AntiCheatChallenge } from './AntiCheatChallenge';
 
 interface FocusSessionScreenProps {
   task: Task;
@@ -35,6 +37,8 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
   const { saveFocusSession, updateUserXP } = useFocusSessions();
   const { completeTask } = useTasks();
   const { updateCheckin, checkIn } = useDailyCheckin();
+  const { recordChallenge } = useAntiCheat();
+  const [focusSessionId, setFocusSessionId] = useState<string | null>(null);
 
   // Initialize real camera for verification
   useEffect(() => {
@@ -117,10 +121,28 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
 
   const progress = ((task.duration_min * 60 - timeRemaining) / (task.duration_min * 60)) * 100;
 
-  const handleChallengeComplete = () => {
+  const handleChallengeComplete = useCallback(async (passed: boolean, responseTimeMs: number) => {
     setShowChallenge(false);
-    setXpEarned(prev => prev + 10); // Bonus XP for challenge
-  };
+    
+    await recordChallenge(
+      focusSessionId,
+      'random',
+      { timestamp: Date.now() },
+      passed,
+      responseTimeMs
+    );
+    
+    if (passed) {
+      setXpEarned(prev => prev + 10); // Bonus XP for passing challenge
+    } else {
+      setVerificationWarnings(prev => prev + 1);
+    }
+  }, [focusSessionId, recordChallenge]);
+
+  const handleChallengeTimeout = useCallback(() => {
+    setShowChallenge(false);
+    setVerificationWarnings(prev => prev + 1);
+  }, []);
 
   const handleEndSession = async () => {
     const actualMinutes = Math.ceil((Date.now() - startTimeRef.current) / 60000);
@@ -342,29 +364,12 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
         </div>
       </div>
 
-      {/* Anti-cheat challenge modal */}
+      {/* Anti-cheat challenge modal - now with real challenges */}
       {showChallenge && (
-        <div className="fixed inset-0 bg-background/95 z-60 flex items-center justify-center px-6">
-          <div className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full text-center animate-scale-in">
-            <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="w-8 h-8 text-accent" />
-            </div>
-            <h3 className="text-xl font-bold text-foreground mb-2">
-              Verification Check
-            </h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              Tap the button to confirm you're still focused
-            </p>
-            <Button
-              variant="glow"
-              size="lg"
-              onClick={handleChallengeComplete}
-              className="w-full"
-            >
-              I'm Focused
-            </Button>
-          </div>
-        </div>
+        <AntiCheatChallenge
+          onComplete={handleChallengeComplete}
+          onTimeout={handleChallengeTimeout}
+        />
       )}
     </div>
   );
