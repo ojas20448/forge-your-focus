@@ -15,8 +15,10 @@ import { ManifestationScreen } from '@/components/manifestation/ManifestationScr
 import { RaidsScreen } from '@/components/raids/RaidsScreen';
 import { StatsScreen } from '@/components/stats/StatsScreen';
 import { SettingsScreen } from '@/components/settings/SettingsScreen';
+import { AchievementsScreen } from '@/components/achievements/AchievementsScreen';
 import { AISchedulerModal } from '@/components/scheduler/AISchedulerModal';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
+import { DailyCheckinModal } from '@/components/checkin/DailyCheckinModal';
 import { mockDayStatuses } from '@/data/mockData';
 import { Task, TaskStatus, TaskType } from '@/types/focusforge';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +26,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useTasks, DbTask } from '@/hooks/useTasks';
 import { useGoals } from '@/hooks/useGoals';
+import { useDailyCheckin } from '@/hooks/useDailyCheckin';
 import { Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -45,11 +48,24 @@ const Index = () => {
   const [activeFocusTask, setActiveFocusTask] = useState<Task | null>(null);
   const [showGoalPlanner, setShowGoalPlanner] = useState(false);
   const [showSchedulerModal, setShowSchedulerModal] = useState(false);
+  const [showCheckinModal, setShowCheckinModal] = useState(false);
   const { toast } = useToast();
 
   // Fetch tasks and goals from database
   const { tasks: dbTasks, loading: tasksLoading, refetch: refetchTasks } = useTasks(selectedDate);
   const { goals, yearGoals, loading: goalsLoading } = useGoals();
+  const { hasCheckedInToday, loading: checkinLoading } = useDailyCheckin();
+
+  // Show daily check-in modal if not checked in today
+  useEffect(() => {
+    if (!checkinLoading && !hasCheckedInToday && hasOnboarded && user) {
+      // Small delay to let the app load first
+      const timer = setTimeout(() => {
+        setShowCheckinModal(true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [checkinLoading, hasCheckedInToday, hasOnboarded, user]);
 
   // Convert DB tasks to UI Task format
   const tasks: Task[] = dbTasks.map(dbTask => ({
@@ -179,7 +195,7 @@ const Index = () => {
       case 'raids':
         return <RaidsScreen />;
       case 'stats':
-        return <StatsScreen />;
+        return <AchievementsScreen />;
       case 'settings':
         return <SettingsScreen />;
       default:
@@ -243,6 +259,10 @@ const Index = () => {
         energyProfile={userStats.energy_profile}
         goals={goals.map(g => ({ title: g.title, id: g.id }))}
         selectedDate={selectedDate}
+      />
+      <DailyCheckinModal 
+        isOpen={showCheckinModal}
+        onClose={() => setShowCheckinModal(false)}
       />
     </MobileLayout>
   );
