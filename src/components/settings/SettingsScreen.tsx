@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Bell, Shield, Moon, Sun, Zap, Clock, ChevronRight, LogOut, HelpCircle, FileText, Palette, Coffee, Camera, Loader2 } from 'lucide-react';
+import { User, Bell, Shield, Moon, Sun, Zap, Clock, ChevronRight, LogOut, HelpCircle, FileText, Palette, Coffee, Camera, Loader2, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { EnergyProfile } from '@/types/focusforge';
@@ -8,6 +8,8 @@ import { useNotifications } from '@/utils/notificationManager';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useAvatarUpload } from '@/hooks/useAvatarUpload';
+import { useCommitmentContracts } from '@/hooks/useCommitmentContracts';
+import { ContractsOverviewScreen } from '@/components/contracts/ContractsOverviewScreen';
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -60,11 +62,13 @@ export const SettingsScreen: React.FC = () => {
   const { user, signOut } = useAuth();
   const { profile, refetch: refetchProfile } = useProfile();
   const { uploadAvatar, uploading: avatarUploading } = useAvatarUpload();
+  const { getActiveContracts } = useCommitmentContracts();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [notifications, setNotifications] = useState(false);
   const [strictMode, setStrictMode] = useState(true);
   const [energyProfile, setEnergyProfile] = useState<EnergyProfile>('morning_lark');
   const [showEnergyModal, setShowEnergyModal] = useState(false);
+  const [showContractsScreen, setShowContractsScreen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       return document.documentElement.classList.contains('dark');
@@ -117,6 +121,13 @@ export const SettingsScreen: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+
+  const activeContracts = getActiveContracts();
+
+  // Show contracts screen if requested
+  if (showContractsScreen) {
+    return <ContractsOverviewScreen onBack={() => setShowContractsScreen(false)} />;
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -286,6 +297,21 @@ export const SettingsScreen: React.FC = () => {
             toggle
             value={darkMode}
             onToggle={setDarkMode}
+          />
+        </div>
+      </section>
+
+      {/* Commitment Contracts */}
+      <section className="px-4 py-2">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-4">
+          Accountability
+        </h2>
+        <div className="bg-card rounded-2xl border border-border/50 overflow-hidden divide-y divide-border/50">
+          <SettingItem
+            icon={<Target className="w-5 h-5 text-primary" />}
+            label="Commitment Contracts"
+            description={activeContracts.length > 0 ? `${activeContracts.length} active contract${activeContracts.length !== 1 ? 's' : ''}` : 'Stake XP on your goals'}
+            onClick={() => setShowContractsScreen(true)}
           />
         </div>
       </section>
