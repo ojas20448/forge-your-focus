@@ -165,7 +165,6 @@ const Index = () => {
       />
     );
   }
-  }
 
   // Goal Planner Screen (full screen)
   if (showGoalPlanner) {
