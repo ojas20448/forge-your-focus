@@ -1,54 +1,57 @@
 import React, { useState } from 'react';
-import { Play, Pause, Eye, Flame, BookOpen, ChevronLeft, Plus, Check, Image, Volume2 } from 'lucide-react';
+import { Play, Pause, Eye, Flame, BookOpen, ChevronLeft, Check, Image, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { VisionBoardScreen } from './VisionBoardScreen';
+import { AffirmationEngine } from './AffirmationEngine';
+import { AffirmationSession } from './AffirmationSession';
+import { useAffirmations } from '@/hooks/useAffirmations';
 
 interface ManifestationScreenProps {
   onBack?: () => void;
 }
 
-interface Affirmation {
-  id: string;
-  text: string;
-  completed: boolean;
-}
+type ViewMode = 'main' | 'affirmation-engine' | 'affirmation-session' | 'vision-board';
 
 export const ManifestationScreen: React.FC<ManifestationScreenProps> = ({ onBack }) => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentSession, setCurrentSession] = useState<'affirmation' | 'visualization' | 'journal' | null>(null);
-  const [showVisionBoard, setShowVisionBoard] = useState(false);
-  const [affirmations, setAffirmations] = useState<Affirmation[]>([
-    { id: '1', text: "I am focused and disciplined in my studies.", completed: true },
-    { id: '2', text: "Every problem I solve makes me stronger.", completed: true },
-    { id: '3', text: "I will achieve my target rank through consistent effort.", completed: false },
-  ]);
-  const [currentAffirmationIndex, setCurrentAffirmationIndex] = useState(0);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-
+  const [currentSession, setCurrentSession] = useState<'visualization' | 'journal' | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('main');
   const [journalEntry, setJournalEntry] = useState('');
-  const [manifestationStreak] = useState(8);
 
-  const completedAffirmations = affirmations.filter(a => a.completed).length;
+  const { 
+    affirmations, 
+    isSessionCompletedToday, 
+    getActiveAffirmations,
+    recordSession 
+  } = useAffirmations();
 
-  const handleSpeakAffirmation = (text: string) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9;
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utterance);
-    }
-  };
+  const manifestationStreak = 8; // TODO: Get from user profile
+  const activeAffirmations = getActiveAffirmations();
+  const affirmationCompleted = isSessionCompletedToday('affirmation');
+  const visualizationCompleted = isSessionCompletedToday('visualization');
+  const journalCompleted = isSessionCompletedToday('journaling');
 
-  const markAffirmationComplete = (id: string) => {
-    setAffirmations(prev => prev.map(a => 
-      a.id === id ? { ...a, completed: true } : a
-    ));
-  };
+  if (viewMode === 'vision-board') {
+    return <VisionBoardScreen onBack={() => setViewMode('main')} />;
+  }
 
-  if (showVisionBoard) {
-    return <VisionBoardScreen onBack={() => setShowVisionBoard(false)} />;
+  if (viewMode === 'affirmation-engine') {
+    return (
+      <AffirmationEngine 
+        onBack={() => setViewMode('main')}
+        onStartSession={() => setViewMode('affirmation-session')}
+      />
+    );
+  }
+
+  if (viewMode === 'affirmation-session') {
+    return (
+      <AffirmationSession
+        onBack={() => setViewMode('affirmation-engine')}
+        onComplete={() => setViewMode('main')}
+      />
+    );
   }
 
   return (
@@ -98,7 +101,7 @@ export const ManifestationScreen: React.FC<ManifestationScreenProps> = ({ onBack
 
           {/* Affirmations */}
           <button
-            onClick={() => setCurrentSession('affirmation')}
+            onClick={() => setViewMode(activeAffirmations.length > 0 ? 'affirmation-session' : 'affirmation-engine')}
             className={cn(
               "w-full flex items-center gap-4 p-4 rounded-2xl border transition-all",
               "bg-card hover:bg-card/80 border-border/50 hover:border-manifestation/30"
@@ -109,14 +112,26 @@ export const ManifestationScreen: React.FC<ManifestationScreenProps> = ({ onBack
             </div>
             <div className="flex-1 text-left">
               <h3 className="font-semibold text-foreground">Daily Affirmations</h3>
-              <p className="text-xs text-muted-foreground">{completedAffirmations}/{affirmations.length} completed</p>
+              <p className="text-xs text-muted-foreground">
+                {activeAffirmations.length} active affirmation{activeAffirmations.length !== 1 ? 's' : ''}
+              </p>
             </div>
-            <div className="h-2 w-16 bg-secondary rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-primary rounded-full"
-                style={{ width: `${(completedAffirmations / affirmations.length) * 100}%` }}
-              />
-            </div>
+            {affirmationCompleted ? (
+              <div className="w-8 h-8 rounded-full bg-success/20 flex items-center justify-center">
+                <Check className="w-4 h-4 text-success" />
+              </div>
+            ) : (
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setViewMode('affirmation-engine');
+                }}
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+            )}
           </button>
 
           {/* Journaling */}
@@ -145,14 +160,14 @@ export const ManifestationScreen: React.FC<ManifestationScreenProps> = ({ onBack
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
             Vision Board
           </h2>
-          <Button variant="ghost" size="sm" onClick={() => setShowVisionBoard(true)}>
+          <Button variant="ghost" size="sm" onClick={() => setViewMode('vision-board')}>
             <Image className="w-4 h-4 mr-1" />
             Open
           </Button>
         </div>
 
         <button
-          onClick={() => setShowVisionBoard(true)}
+          onClick={() => setViewMode('vision-board')}
           className="w-full grid grid-cols-3 gap-2"
         >
           {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -230,79 +245,6 @@ export const ManifestationScreen: React.FC<ManifestationScreenProps> = ({ onBack
               className="rounded-full w-20 h-20"
             >
               {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-1" />}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Affirmation session modal */}
-      {currentSession === 'affirmation' && (
-        <div className="fixed inset-0 bg-background z-50 flex flex-col">
-          <header className="flex items-center justify-between px-4 py-4 border-b border-border">
-            <button onClick={() => setCurrentSession(null)} className="p-2 rounded-lg hover:bg-secondary">
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <h2 className="font-semibold">Affirmations</h2>
-            <span className="text-xs text-muted-foreground">{currentAffirmationIndex + 1}/{affirmations.length}</span>
-          </header>
-
-          <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
-            <div className={cn(
-              "w-24 h-24 rounded-full flex items-center justify-center mb-8",
-              affirmations[currentAffirmationIndex]?.completed ? "bg-success/20" : "bg-primary/20"
-            )}>
-              {affirmations[currentAffirmationIndex]?.completed ? (
-                <Check className="w-12 h-12 text-success" />
-              ) : (
-                <Flame className="w-12 h-12 text-primary" />
-              )}
-            </div>
-
-            <p className="text-xl font-semibold text-foreground mb-8 max-w-sm">
-              "{affirmations[currentAffirmationIndex]?.text}"
-            </p>
-
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handleSpeakAffirmation(affirmations[currentAffirmationIndex]?.text)}
-                className={cn(isSpeaking && "bg-primary/20 border-primary")}
-              >
-                <Volume2 className={cn("w-5 h-5", isSpeaking && "text-primary animate-pulse")} />
-              </Button>
-              
-              {!affirmations[currentAffirmationIndex]?.completed && (
-                <Button
-                  variant="success"
-                  onClick={() => markAffirmationComplete(affirmations[currentAffirmationIndex]?.id)}
-                >
-                  <Check className="w-4 h-4 mr-2" />
-                  I believe this
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div className="p-4 border-t border-border flex justify-between">
-            <Button
-              variant="ghost"
-              onClick={() => setCurrentAffirmationIndex(Math.max(0, currentAffirmationIndex - 1))}
-              disabled={currentAffirmationIndex === 0}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                if (currentAffirmationIndex === affirmations.length - 1) {
-                  setCurrentSession(null);
-                } else {
-                  setCurrentAffirmationIndex(currentAffirmationIndex + 1);
-                }
-              }}
-            >
-              {currentAffirmationIndex === affirmations.length - 1 ? 'Done' : 'Next'}
             </Button>
           </div>
         </div>
