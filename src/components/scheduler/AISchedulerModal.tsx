@@ -3,8 +3,13 @@ import { X, Mic, Send, Sparkles, Loader2, Clock, Target, Zap, Check, Sun, Moon, 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { EnergyProfile, Task } from '@/types/focusforge';
-import { energySchedulingProfiles } from '@/data/mockData';
 import { createGeminiScheduler, GeneratedTask as GeminiTask } from '@/utils/geminiScheduler';
+
+const energySchedulingProfiles = {
+  morning_lark: { peak: { start: 6, end: 12 }, low: { start: 18, end: 23 } },
+  night_owl: { peak: { start: 18, end: 23 }, low: { start: 6, end: 12 } },
+  balanced: { peak: { start: 9, end: 17 }, low: { start: 0, end: 6 } },
+};
 import { useTasks, CreateTaskInput } from '@/hooks/useTasks';
 import { format } from 'date-fns';
 
@@ -99,11 +104,22 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
     }
   };
 
+  const formatTimeFromMinutes = (totalMinutes: number) => {
+    const minutesInDay = 24 * 60;
+    const normalized = ((totalMinutes % minutesInDay) + minutesInDay) % minutesInDay;
+    const hours = Math.floor(normalized / 60);
+    const minutes = normalized % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
   const generateMockTasks = () => {
     setTimeout(() => {
       const profile = energySchedulingProfiles[energyProfile];
       const peakStart = profile.peak.start;
       const peakEnd = profile.peak.end;
+
+      const peakStartMinutes = peakStart * 60;
+      const peakEndMinutes = peakEnd * 60;
       
       // Generate tasks scheduled based on energy profile
       const mockTasks: GeneratedTask[] = [
@@ -111,21 +127,21 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
           title: "Study Physics - Mechanics",
           duration: 90,
           priority: 'high',
-          suggestedTime: `${peakStart.toString().padStart(2, '0')}:00 - ${(peakStart + 1.5).toString().padStart(2, '0')}:30`,
+          suggestedTime: `${formatTimeFromMinutes(peakStartMinutes)} - ${formatTimeFromMinutes(peakStartMinutes + 90)}`,
           linkedGoal: "Crack JEE 2026"
         },
         {
           title: "Math Worksheet - Calculus",
           duration: 60,
           priority: 'medium',
-          suggestedTime: `${(peakStart + 2).toString().padStart(2, '0')}:00 - ${(peakStart + 3).toString().padStart(2, '0')}:00`,
+          suggestedTime: `${formatTimeFromMinutes(peakStartMinutes + 120)} - ${formatTimeFromMinutes(peakStartMinutes + 180)}`,
           linkedGoal: "Crack JEE 2026"
         },
         {
           title: "Chemistry Revision",
           duration: 45,
           priority: 'medium',
-          suggestedTime: `${(peakEnd - 1).toString().padStart(2, '0')}:00 - ${(peakEnd - 0.25).toString().padStart(2, '0')}:45`
+          suggestedTime: `${formatTimeFromMinutes(peakEndMinutes - 60)} - ${formatTimeFromMinutes(peakEndMinutes - 15)}`
         }
       ];
       

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Bell, Shield, Moon, Sun, Zap, Clock, ChevronRight, LogOut, HelpCircle, FileText, Palette, Coffee, Camera, Loader2, Target } from 'lucide-react';
+import { User, Bell, Shield, Moon, Sun, Zap, Clock, ChevronRight, LogOut, HelpCircle, FileText, Palette, Coffee, Camera, Loader2, Target, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { EnergyProfile } from '@/types/focusforge';
@@ -10,6 +10,9 @@ import { useProfile } from '@/hooks/useProfile';
 import { useAvatarUpload } from '@/hooks/useAvatarUpload';
 import { useCommitmentContracts } from '@/hooks/useCommitmentContracts';
 import { ContractsOverviewScreen } from '@/components/contracts/ContractsOverviewScreen';
+import { AppTourModal } from '@/components/onboarding/AppTourModal';
+import { EditProfileModal } from './EditProfileModal';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -66,9 +69,10 @@ export const SettingsScreen: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [notifications, setNotifications] = useState(false);
   const [strictMode, setStrictMode] = useState(true);
-  const [energyProfile, setEnergyProfile] = useState<EnergyProfile>('morning_lark');
   const [showEnergyModal, setShowEnergyModal] = useState(false);
   const [showContractsScreen, setShowContractsScreen] = useState(false);
+  const [showAppTour, setShowAppTour] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       return document.documentElement.classList.contains('dark');
@@ -100,6 +104,8 @@ export const SettingsScreen: React.FC = () => {
       checkPerm();
     }
   }, [checkPermission, isSupported]);
+
+  const energyProfile = ((profile as any)?.energy_profile as EnergyProfile) || 'balanced';
 
   const handleNotificationToggle = async (value: boolean) => {
     if (value) {
@@ -140,7 +146,10 @@ export const SettingsScreen: React.FC = () => {
 
       {/* Profile section */}
       <section className="px-4 py-4">
-        <div className="bg-card rounded-2xl border border-border/50 p-4 flex items-center gap-4">
+        <button 
+          onClick={() => setShowEditProfile(true)}
+          className="w-full bg-card rounded-2xl border border-border/50 p-4 flex items-center gap-4 hover:bg-card/80 transition-colors"
+        >
           {/* Avatar with upload */}
           <input
             type="file"
@@ -179,10 +188,13 @@ export const SettingsScreen: React.FC = () => {
               <span className="text-xs text-xp-glow font-mono-time">{profile?.total_xp?.toLocaleString() || 0} XP</span>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handleAvatarClick}>
+          <Button variant="outline" size="sm" onClick={(e) => {
+            e.stopPropagation();
+            setShowEditProfile(true);
+          }}>
             {avatarUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Edit'}
           </Button>
-        </div>
+        </button>
       </section>
 
       {/* Energy profile */}
@@ -228,9 +240,16 @@ export const SettingsScreen: React.FC = () => {
               ].map((profile) => (
                 <button
                   key={profile.id}
-                  onClick={() => {
-                    setEnergyProfile(profile.id);
-                    setShowEnergyModal(false);
+                  onClick={async () => {
+                    const { error } = await supabase
+                      .from('profiles')
+                      .update({ energy_profile: profile.id } as any)
+                      .eq('user_id', user!.id);
+                    
+                    if (!error) {
+                      refetchProfile();
+                      setShowEnergyModal(false);
+                    }
                   }}
                   className={cn(
                     "w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all",
@@ -369,6 +388,12 @@ export const SettingsScreen: React.FC = () => {
         </h2>
         <div className="bg-card rounded-2xl border border-border/50 overflow-hidden divide-y divide-border/50">
           <SettingItem
+            icon={<Info className="w-5 h-5 text-muted-foreground" />}
+            label="App Tour"
+            description="Learn how to use FocusForge"
+            onClick={() => setShowAppTour(true)}
+          />
+          <SettingItem
             icon={<HelpCircle className="w-5 h-5 text-muted-foreground" />}
             label="Help & FAQ"
             onClick={() => {}}
@@ -395,6 +420,18 @@ export const SettingsScreen: React.FC = () => {
       <div className="text-center py-4">
         <p className="text-xs text-muted-foreground">FocusForge v1.0.0</p>
       </div>
+
+      {/* App Tour Modal */}
+      <AppTourModal 
+        isOpen={showAppTour}
+        onClose={() => setShowAppTour(false)}
+      />
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal 
+        isOpen={showEditProfile}
+        onClose={() => setShowEditProfile(false)}
+      />
     </div>
   );
 };

@@ -8,7 +8,7 @@ interface FloatingActionButtonProps {
 }
 
 const timeActions = {
-  morning: { icon: Calendar, label: 'Plan Day', action: 'plan' },
+  morning: { icon: Plus, label: 'Add Task', action: 'quick-task' },
   midday: { icon: Play, label: 'Start Focus', action: 'focus' },
   evening: { icon: Moon, label: 'Review & Lock', action: 'review' },
 };
@@ -22,8 +22,8 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   const PrimaryIcon = primaryAction.icon;
 
   const quickActions = [
-    { icon: Calendar, label: 'Quick Task', action: 'quick-task' },
-    { icon: Play, label: 'Focus Now', action: 'focus-now' },
+    { icon: Plus, label: 'Quick Task', action: 'quick-task' },
+    { icon: Calendar, label: 'Plan Day', action: 'plan' },
   ];
 
   return (

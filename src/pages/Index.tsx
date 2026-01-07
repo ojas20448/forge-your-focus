@@ -20,8 +20,9 @@ import { AISchedulerModal } from '@/components/scheduler/AISchedulerModal';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { DailyCheckinModal } from '@/components/checkin/DailyCheckinModal';
 import { TaskDetailModal } from '@/components/tasks/TaskDetailModal';
+import { QuickAddTaskModal } from '@/components/tasks/QuickAddTaskModal';
+import { AppTourModal } from '@/components/onboarding/AppTourModal';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
-import { mockDayStatuses } from '@/data/mockData';
 import { Task, TaskStatus, TaskType } from '@/types/focusforge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -46,12 +47,25 @@ const Index = () => {
     }
     return false;
   });
+
+  // Check if user has completed onboarding in database
+  useEffect(() => {
+    if (!profileLoading && profile) {
+      if (profile.onboarding_completed) {
+        localStorage.setItem(ONBOARDING_KEY, 'true');
+        setHasOnboarded(true);
+      }
+    }
+  }, [profile, profileLoading]);
+
+  const [showAppTour, setShowAppTour] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeFocusTask, setActiveFocusTask] = useState<Task | null>(null);
   const [showGoalPlanner, setShowGoalPlanner] = useState(false);
   const [showSchedulerModal, setShowSchedulerModal] = useState(false);
   const [showCheckinModal, setShowCheckinModal] = useState(false);
+  const [showQuickAddTask, setShowQuickAddTask] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const { toast } = useToast();
 
@@ -121,17 +135,18 @@ const Index = () => {
     efficiency_multiplier: 1,
     manifestation_streak: 0,
     weekly_focus_hours: 0,
-    weekly_goal_hours: 0,
-    energy_profile: 'balanced' as const,
+    weekly_goal_hours: profile?.weekly_hours_target || 20,
+    energy_profile: (profile?.energy_profile as 'morning_lark' | 'night_owl' | 'balanced') || 'balanced',
     debt_score: 0,
   };
 
   const handleOnboardingComplete = () => {
     localStorage.setItem(ONBOARDING_KEY, 'true');
     setHasOnboarded(true);
+    setShowAppTour(true);
     toast({ 
       title: "Welcome to FocusForge!", 
-      description: "Your journey to peak productivity begins now." 
+      description: "Let's take a quick tour of the app." 
     });
   };
 
@@ -162,17 +177,32 @@ const Index = () => {
   };
 
   const handleFABAction = (action: string) => {
+    if (action === 'plan') {
+      setShowSchedulerModal(true);
+      return;
+    }
+
+    if (action === 'quick-task') {
+      setShowQuickAddTask(true);
+      return;
+    }
+
     if (action === 'focus' || action === 'focus-now') {
       const pendingTask = tasks.find(t => t.status === 'pending' || t.status === 'active');
-      if (pendingTask) setActiveFocusTask(pendingTask);
-      else {
-        toast({ title: "No tasks", description: "Create a task first to start focusing." });
+      if (pendingTask) {
+        setActiveFocusTask(pendingTask);
+      } else {
+        // No tasks - show quick add instead of scheduler
+        setShowQuickAddTask(true);
+        toast({
+          title: "No tasks yet",
+          description: "Add your first task to get started."
+        });
       }
-    } else if (action === 'plan') {
-      setShowSchedulerModal(true);
-    } else {
-      toast({ title: "Daily Review", description: "Feature coming soon..." });
+      return;
     }
+
+    toast({ title: "Daily Review", description: "Feature coming soon..." });
   };
 
   const handleTasksGenerated = () => {
@@ -251,7 +281,7 @@ const Index = () => {
                 </div>
               </div>
             </header>
-            <DateStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} dayStatuses={mockDayStatuses} />
+            <DateStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} dayStatuses={{}} />
             <StatsBar stats={userStats} />
             {yearGoals.length > 0 && (
               <GoalOverviewCard 
@@ -260,12 +290,12 @@ const Index = () => {
                   type: 'year',
                   title: yearGoals[0].title,
                   description: yearGoals[0].description || '',
-                  target_date: yearGoals[0].target_date || '',
+                  target_date: yearGoals[0].target_date || format(new Date(2026, 11, 31), 'yyyy-MM-dd'),
                   progress_percent: yearGoals[0].progress || 0,
                   is_active: yearGoals[0].is_active ?? true,
                   health_score: 70,
                 }} 
-                nextMilestone="Complete current milestone" 
+                nextMilestone={yearGoals[0].monthly_milestones?.[0] || "Keep building momentum"} 
                 daysUntilMilestone={30} 
               />
             )}
@@ -318,6 +348,14 @@ const Index = () => {
         isOpen={showCheckinModal}
         onClose={() => setShowCheckinModal(false)}
       />
+      <QuickAddTaskModal 
+        isOpen={showQuickAddTask}
+        onClose={() => {
+          setShowQuickAddTask(false);
+          refetchTasks();
+        }}
+        selectedDate={selectedDate}
+      />
       {selectedTask && (
         <TaskDetailModal
           task={selectedTask}
@@ -329,6 +367,10 @@ const Index = () => {
           onStartFocus={handleStartFocusFromDetail}
         />
       )}
+      <AppTourModal 
+        isOpen={showAppTour}
+        onClose={() => setShowAppTour(false)}
+      />
     </MobileLayout>
   );
 };

@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { ChevronRight, Target, Brain, Eye, Flame, Zap, Sun, Moon, Coffee } from 'lucide-react';
+import { ChevronRight, Target, Brain, Eye, Flame, Zap, Sun, Moon, Coffee, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { format } from 'date-fns';
 
 interface OnboardingScreenProps {
   onComplete: () => void;
@@ -19,7 +22,9 @@ interface OnboardingData {
 }
 
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
+  const { user } = useAuth();
   const [step, setStep] = useState(0);
+  const [saving, setSaving] = useState(false);
   const [data, setData] = useState<OnboardingData>({
     name: '',
     yearGoal: '',
@@ -39,11 +44,60 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
   const weeklyHoursOptions = [10, 15, 20, 25, 30, 40];
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step < totalSteps - 1) {
       setStep(step + 1);
-    } else {
+      return;
+    }
+
+    // Final step - save to database
+    if (!user) {
+      console.error('No user found during onboarding');
       onComplete();
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // 1. Update profile with onboarding data
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          user_id: user.id,
+          display_name: data.name,
+          energy_profile: data.energyProfile,
+          weekly_hours_target: data.weeklyHours,
+          onboarding_completed: true,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (profileError) throw profileError;
+
+      // 2. Create year goal
+      const targetDate = format(new Date(2026, 11, 31), 'yyyy-MM-dd'); // Dec 31, 2026
+      const { error: goalError } = await supabase
+        .from('goals')
+        .insert({
+          user_id: user.id,
+          title: data.yearGoal,
+          description: `Year goal set during onboarding on ${format(new Date(), 'MMM dd, yyyy')}`,
+          type: 'year',
+          target_date: targetDate,
+          is_active: true,
+          progress: 0
+        });
+
+      if (goalError) throw goalError;
+
+      onComplete();
+    } catch (error) {
+      console.error('Error saving onboarding data:', error);
+      // Still complete onboarding even if save fails
+      onComplete();
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -256,9 +310,14 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           className="w-full h-14" 
           variant="glow"
           onClick={handleNext}
-          disabled={!canProceed()}
+          disabled={!canProceed() || saving}
         >
-          {step === totalSteps - 1 ? (
+          {saving ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : step === totalSteps - 1 ? (
             <>
               <Flame className="w-5 h-5 mr-2" />
               Start Forging

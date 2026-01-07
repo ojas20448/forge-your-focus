@@ -100,13 +100,33 @@ export const Timeline: React.FC<TimelineProps> = ({ tasks, onTaskClick }) => {
         {/* Empty state */}
         {sortedTasks.length === 0 && (
           <div className="ml-14 mr-4 py-12 flex flex-col items-center justify-center text-center">
-            <div className="w-16 h-16 rounded-2xl bg-secondary/50 flex items-center justify-center mb-4">
-              <span className="text-3xl">📋</span>
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-4">
+              <span className="text-4xl">📅</span>
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-1">No tasks scheduled</h3>
-            <p className="text-sm text-muted-foreground">
-              Tap the button below to plan your day
+            <h3 className="text-lg font-semibold text-foreground mb-2">No tasks scheduled</h3>
+            <p className="text-sm text-muted-foreground mb-6 max-w-xs">
+              Start by adding a task to build your perfect day
             </p>
+            <div className="space-y-2 text-left w-full max-w-xs">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quick Examples:</p>
+              <div className="space-y-1.5">
+                {[
+                  { emoji: '📚', text: 'Study session (60-90 min)' },
+                  { emoji: '💪', text: 'Workout (30-45 min)' },
+                  { emoji: '🎯', text: 'Project work (2 hours)' },
+                ].map((example, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>{example.emoji}</span>
+                    <span>{example.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-6 p-3 rounded-xl bg-primary/5 border border-primary/20">
+              <p className="text-xs text-primary font-medium">
+                💡 Tap the button below to add your first task
+              </p>
+            </div>
           </div>
         )}
       </div>
