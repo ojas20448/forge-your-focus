@@ -119,8 +119,32 @@ export const RaidsScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background pb-24">
+        <header className="sticky top-0 bg-background/95 backdrop-blur-xl border-b border-border z-20">
+          <div className="px-4 py-4 flex items-center justify-between">
+            <div className="h-7 w-40 bg-secondary/50 rounded animate-pulse" />
+            <div className="h-9 w-9 bg-secondary/50 rounded animate-pulse" />
+          </div>
+          <div className="flex px-4 pb-2 gap-2">
+            <div className="flex-1 h-10 bg-secondary/50 rounded-lg animate-pulse" />
+            <div className="flex-1 h-10 bg-secondary/50 rounded-lg animate-pulse" />
+          </div>
+        </header>
+        <div className="p-4 space-y-4">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="p-4 rounded-2xl bg-card border border-border/50">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-secondary/50 animate-pulse" />
+                <div className="flex-1">
+                  <div className="h-5 w-1/2 bg-secondary/50 rounded mb-2 animate-pulse" />
+                  <div className="h-3 w-1/4 bg-secondary/50 rounded animate-pulse" />
+                </div>
+              </div>
+              <div className="h-3 w-full bg-secondary/50 rounded-full mb-4 animate-pulse" />
+              <div className="h-12 w-full bg-secondary/50 rounded-xl animate-pulse" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

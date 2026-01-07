@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
@@ -39,14 +39,17 @@ export const useTasks = (selectedDate?: Date) => {
   const { toast } = useToast();
   const [tasks, setTasks] = useState<DbTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [mutating, setMutating] = useState(false);
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     if (!user) {
       setTasks([]);
       setLoading(false);
       return;
     }
 
+    setError(null);
     try {
       let query = supabase
         .from('tasks')
@@ -59,28 +62,50 @@ export const useTasks = (selectedDate?: Date) => {
         query = query.eq('scheduled_date', dateStr);
       }
 
-      const { data, error } = await query;
+      const { data, error: fetchError } = await query;
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
       setTasks(data || []);
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch tasks';
+      console.error('Error fetching tasks:', err);
+      setError(message);
       toast({
-        title: 'Error',
-        description: 'Failed to fetch tasks',
+        title: 'Unable to load tasks',
+        description: 'Please check your connection and try again.',
         variant: 'destructive'
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, selectedDate, toast]);
 
   useEffect(() => {
     fetchTasks();
-  }, [user, selectedDate]);
+  }, [fetchTasks]);
 
   const createTask = async (input: CreateTaskInput) => {
     if (!user) return null;
+
+    // Optimistic task with temp ID
+    const tempId = `temp-${Date.now()}`;
+    const optimisticTask: DbTask = {
+      id: tempId,
+      ...input,
+      description: input.description || null,
+      priority: input.priority || 'medium',
+      is_completed: false,
+      is_verified: false,
+      goal_id: input.goal_id || null,
+      xp_reward: input.xp_reward || 0,
+      user_id: user.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Optimistic update
+    setTasks(prev => [...prev, optimisticTask].sort((a, b) => a.start_time.localeCompare(b.start_time)));
+    setMutating(true);
 
     try {
       const { data, error } = await supabase
@@ -96,22 +121,29 @@ export const useTasks = (selectedDate?: Date) => {
 
       if (error) throw error;
 
-      setTasks(prev => [...prev, data].sort((a, b) => a.start_time.localeCompare(b.start_time)));
+      // Replace temp task with real one
+      setTasks(prev => prev.map(t => t.id === tempId ? data : t));
       return data;
-    } catch (error) {
-      console.error('Error creating task:', error);
+    } catch (err) {
+      // Rollback optimistic update
+      setTasks(prev => prev.filter(t => t.id !== tempId));
+      const message = err instanceof Error ? err.message : 'Failed to create task';
+      console.error('Error creating task:', err);
       toast({
-        title: 'Error',
-        description: 'Failed to create task',
+        title: 'Couldn\'t create task',
+        description: message,
         variant: 'destructive'
       });
       return null;
+    } finally {
+      setMutating(false);
     }
   };
 
   const createBulkTasks = async (inputs: CreateTaskInput[]) => {
     if (!user || inputs.length === 0) return [];
 
+    setMutating(true);
     try {
       const tasksToInsert = inputs.map(input => ({
         ...input,
@@ -128,20 +160,34 @@ export const useTasks = (selectedDate?: Date) => {
       if (error) throw error;
 
       setTasks(prev => [...prev, ...(data || [])].sort((a, b) => a.start_time.localeCompare(b.start_time)));
-      return data || [];
-    } catch (error) {
-      console.error('Error creating tasks:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to create tasks',
+        title: 'Tasks created',
+        description: `${data?.length || 0} tasks added to your schedule.`
+      });
+      return data || [];
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create tasks';
+      console.error('Error creating tasks:', err);
+      toast({
+        title: 'Couldn\'t create tasks',
+        description: message,
         variant: 'destructive'
       });
       return [];
+    } finally {
+      setMutating(false);
     }
   };
 
   const updateTask = async (id: string, updates: Partial<DbTask>) => {
     if (!user) return false;
+
+    // Store previous state for rollback
+    const previousTasks = [...tasks];
+    
+    // Optimistic update
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    setMutating(true);
 
     try {
       const { error } = await supabase
@@ -151,22 +197,32 @@ export const useTasks = (selectedDate?: Date) => {
         .eq('user_id', user.id);
 
       if (error) throw error;
-
-      setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
       return true;
-    } catch (error) {
-      console.error('Error updating task:', error);
+    } catch (err) {
+      // Rollback
+      setTasks(previousTasks);
+      const message = err instanceof Error ? err.message : 'Failed to update task';
+      console.error('Error updating task:', err);
       toast({
-        title: 'Error',
-        description: 'Failed to update task',
+        title: 'Couldn\'t update task',
+        description: message,
         variant: 'destructive'
       });
       return false;
+    } finally {
+      setMutating(false);
     }
   };
 
   const deleteTask = async (id: string) => {
     if (!user) return false;
+
+    // Store for rollback
+    const taskToDelete = tasks.find(t => t.id === id);
+    
+    // Optimistic delete
+    setTasks(prev => prev.filter(t => t.id !== id));
+    setMutating(true);
 
     try {
       const { error } = await supabase
@@ -176,17 +232,27 @@ export const useTasks = (selectedDate?: Date) => {
         .eq('user_id', user.id);
 
       if (error) throw error;
-
-      setTasks(prev => prev.filter(t => t.id !== id));
-      return true;
-    } catch (error) {
-      console.error('Error deleting task:', error);
+      
       toast({
-        title: 'Error',
-        description: 'Failed to delete task',
+        title: 'Task deleted',
+        description: 'Task has been removed.'
+      });
+      return true;
+    } catch (err) {
+      // Rollback
+      if (taskToDelete) {
+        setTasks(prev => [...prev, taskToDelete].sort((a, b) => a.start_time.localeCompare(b.start_time)));
+      }
+      const message = err instanceof Error ? err.message : 'Failed to delete task';
+      console.error('Error deleting task:', err);
+      toast({
+        title: 'Couldn\'t delete task',
+        description: message,
         variant: 'destructive'
       });
       return false;
+    } finally {
+      setMutating(false);
     }
   };
 
@@ -200,6 +266,8 @@ export const useTasks = (selectedDate?: Date) => {
   return {
     tasks,
     loading,
+    error,
+    mutating,
     createTask,
     createBulkTasks,
     updateTask,
