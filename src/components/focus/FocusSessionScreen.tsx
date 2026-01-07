@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Task } from '@/types/focusforge';
 import { cameraManager, DetectionResult } from '@/utils/cameraManager';
+import { useFocusSessions } from '@/hooks/useFocusSessions';
+import { useTasks } from '@/hooks/useTasks';
 
 interface FocusSessionScreenProps {
   task: Task;
-  onEnd: () => void;
+  onEnd: (xpEarned: number) => void;
   onPause: () => void;
 }
 
@@ -24,7 +26,13 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
   const [xpEarned, setXpEarned] = useState(0);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
+  const [breakCount, setBreakCount] = useState(0);
+  const [totalBreakSeconds, setTotalBreakSeconds] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const startTimeRef = useRef(Date.now());
+  
+  const { saveFocusSession, updateUserXP } = useFocusSessions();
+  const { completeTask } = useTasks();
 
   // Initialize real camera for verification
   useEffect(() => {
@@ -112,11 +120,54 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
     setXpEarned(prev => prev + 10); // Bonus XP for challenge
   };
 
+  const handleEndSession = async () => {
+    const actualMinutes = Math.ceil((Date.now() - startTimeRef.current) / 60000);
+    const finalXP = Math.floor(xpEarned);
+    const wasCompleted = timeRemaining <= 0;
+
+    // Save session to database
+    await saveFocusSession({
+      task_id: task.id,
+      planned_duration_minutes: task.duration_min,
+      actual_duration_minutes: actualMinutes,
+      was_completed: wasCompleted,
+      xp_earned: finalXP,
+      break_count: breakCount,
+      total_break_minutes: Math.ceil(totalBreakSeconds / 60),
+    });
+
+    // Update user XP
+    await updateUserXP(finalXP);
+
+    // Mark task as completed if finished
+    if (wasCompleted) {
+      await completeTask(task.id, finalXP);
+    }
+
+    onEnd(finalXP);
+  };
+
+  const handlePauseToggle = () => {
+    if (!isPaused) {
+      setBreakCount(prev => prev + 1);
+    }
+    setIsPaused(!isPaused);
+  };
+
+  // Track break time
+  useEffect(() => {
+    if (!isPaused) return;
+    const interval = setInterval(() => {
+      setTotalBreakSeconds(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
   return (
     <div className="fixed inset-0 bg-background z-50 flex flex-col">
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-4 border-b border-border">
-        <button onClick={onEnd} className="p-2 rounded-lg hover:bg-secondary">
+        <button onClick={handleEndSession} className="p-2 rounded-lg hover:bg-secondary">
           <X className="w-5 h-5 text-muted-foreground" />
         </button>
         <div className="flex items-center gap-2">
@@ -249,7 +300,7 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
           <Button
             variant="outline"
             size="icon-lg"
-            onClick={onEnd}
+            onClick={handleEndSession}
             className="rounded-full"
           >
             <SkipForward className="w-6 h-6" />
@@ -258,7 +309,7 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
           <Button
             variant={isPaused ? "glow" : "danger"}
             size="xl"
-            onClick={() => setIsPaused(!isPaused)}
+            onClick={handlePauseToggle}
             className="rounded-full w-20 h-20"
           >
             {isPaused ? (
@@ -271,7 +322,7 @@ export const FocusSessionScreen: React.FC<FocusSessionScreenProps> = ({
           <Button
             variant="outline"
             size="icon-lg"
-            onClick={onEnd}
+            onClick={handleEndSession}
             className="rounded-full"
           >
             <X className="w-6 h-6" />

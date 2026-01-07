@@ -267,6 +267,86 @@ export type Database = {
         }
         Relationships: []
       }
+      raid_members: {
+        Row: {
+          focus_hours: number
+          id: string
+          joined_at: string
+          raid_id: string
+          user_id: string
+          xp_contributed: number
+        }
+        Insert: {
+          focus_hours?: number
+          id?: string
+          joined_at?: string
+          raid_id: string
+          user_id: string
+          xp_contributed?: number
+        }
+        Update: {
+          focus_hours?: number
+          id?: string
+          joined_at?: string
+          raid_id?: string
+          user_id?: string
+          xp_contributed?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raid_members_raid_id_fkey"
+            columns: ["raid_id"]
+            isOneToOne: false
+            referencedRelation: "raids"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      raids: {
+        Row: {
+          created_at: string
+          created_by: string
+          current_hours: number
+          description: string | null
+          ends_at: string
+          id: string
+          is_active: boolean | null
+          name: string
+          reward: string | null
+          starts_at: string
+          target_hours: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          current_hours?: number
+          description?: string | null
+          ends_at: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          reward?: string | null
+          starts_at?: string
+          target_hours?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          current_hours?: number
+          description?: string | null
+          ends_at?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          reward?: string | null
+          starts_at?: string
+          target_hours?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           created_at: string

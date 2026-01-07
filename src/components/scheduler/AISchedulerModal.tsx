@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 import { EnergyProfile, Task } from '@/types/focusforge';
 import { energySchedulingProfiles } from '@/data/mockData';
 import { createGeminiScheduler, GeneratedTask as GeminiTask } from '@/utils/geminiScheduler';
+import { useTasks, CreateTaskInput } from '@/hooks/useTasks';
+import { format } from 'date-fns';
 
 interface GeneratedTask {
   title: string;
@@ -20,7 +22,8 @@ interface AISchedulerModalProps {
   onTasksGenerated?: (tasks: GeneratedTask[]) => void;
   energyProfile?: EnergyProfile;
   existingTasks?: Task[];
-  goals?: Array<{ title: string }>;
+  goals?: Array<{ title: string; id?: string }>;
+  selectedDate?: Date;
 }
 
 export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
@@ -29,7 +32,8 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
   onTasksGenerated,
   energyProfile = 'balanced',
   existingTasks = [],
-  goals = []
+  goals = [],
+  selectedDate = new Date()
 }) => {
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -37,7 +41,8 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
   const [generatedTasks, setGeneratedTasks] = useState<GeneratedTask[]>([]);
   const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [useAI, setUseAI] = useState(true); // Toggle between AI and mock
+  const [useAI, setUseAI] = useState(true);
+  const { createBulkTasks } = useTasks();
 
   const examplePrompts = [
     "Study Physics for 2 hours",
@@ -145,9 +150,31 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
     );
   };
 
-  const handleAddToSchedule = () => {
+  const handleAddToSchedule = async () => {
     const tasksToAdd = generatedTasks.filter((_, i) => selectedTasks.includes(i));
+    
+    // Convert to database format and save
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    const taskInputs: CreateTaskInput[] = tasksToAdd.map(task => {
+      const [startTime, endTime] = task.suggestedTime.split(' - ').map(t => t.trim());
+      return {
+        title: task.title,
+        description: '',
+        priority: task.priority,
+        scheduled_date: dateStr,
+        start_time: startTime,
+        end_time: endTime,
+        duration_minutes: task.duration,
+        goal_id: goals.find(g => g.title === task.linkedGoal)?.id,
+        xp_reward: task.duration >= 60 ? 20 : 10,
+      };
+    });
+
+    await createBulkTasks(taskInputs);
     onTasksGenerated?.(tasksToAdd);
+    setGeneratedTasks([]);
+    setSelectedTasks([]);
+    setInput('');
     onClose();
   };
 
