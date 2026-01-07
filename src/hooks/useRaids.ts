@@ -70,6 +70,36 @@ export const useRaids = () => {
 
   useEffect(() => {
     fetchRaids();
+
+    // Set up realtime subscriptions
+    if (!user) return;
+
+    const raidsChannel = supabase
+      .channel('raids-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'raids'
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setRaids(prev => [payload.new as DbRaid, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setRaids(prev => prev.map(r => 
+              r.id === payload.new.id ? payload.new as DbRaid : r
+            ));
+          } else if (payload.eventType === 'DELETE') {
+            setRaids(prev => prev.filter(r => r.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(raidsChannel);
+    };
   }, [user]);
 
   const createRaid = async (input: CreateRaidInput) => {
