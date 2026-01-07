@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { BottomNavigation, TabId } from '@/components/layout/BottomNavigation';
 import { DateStrip } from '@/components/dashboard/DateStrip';
@@ -19,10 +20,17 @@ import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { mockTasks, mockYearGoal, mockUserStats, mockDayStatuses } from '@/data/mockData';
 import { Task } from '@/types/focusforge';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
+import { Loader2 } from 'lucide-react';
 
 const ONBOARDING_KEY = 'focusforge_onboarded';
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
+  
   const [hasOnboarded, setHasOnboarded] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem(ONBOARDING_KEY) === 'true';
@@ -36,6 +44,13 @@ const Index = () => {
   const [showSchedulerModal, setShowSchedulerModal] = useState(false);
   const { toast } = useToast();
 
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [user, authLoading, navigate]);
+
   const hour = new Date().getHours();
   const timeOfDay = hour < 10 ? 'morning' : hour < 18 ? 'midday' : 'evening';
   const hasActiveTask = mockTasks.some(t => t.status === 'active');
@@ -48,6 +63,20 @@ const Index = () => {
       description: "Your journey to peak productivity begins now." 
     });
   };
+
+  // Show loading state
+  if (authLoading || profileLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated
+  if (!user) {
+    return null;
+  }
 
   const handleTaskClick = (task: Task) => {
     if (task.status === 'pending' || task.status === 'active') {

@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Bell, Shield, Moon, Sun, Zap, Clock, ChevronRight, LogOut, HelpCircle, FileText, Palette, Coffee } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { EnergyProfile } from '@/types/focusforge';
 import { useNotifications } from '@/utils/notificationManager';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -52,6 +55,9 @@ const SettingItem: React.FC<SettingItemProps> = ({
 );
 
 export const SettingsScreen: React.FC = () => {
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const { profile } = useProfile();
   const [notifications, setNotifications] = useState(false);
   const [strictMode, setStrictMode] = useState(true);
   const [energyProfile, setEnergyProfile] = useState<EnergyProfile>('morning_lark');
@@ -113,11 +119,11 @@ export const SettingsScreen: React.FC = () => {
             🎯
           </div>
           <div className="flex-1">
-            <h2 className="font-bold text-foreground text-lg">Focus Warrior</h2>
-            <p className="text-sm text-muted-foreground">Level 14 • Gold League</p>
+            <h2 className="font-bold text-foreground text-lg">{profile?.display_name || user?.email?.split('@')[0] || 'Focus Warrior'}</h2>
+            <p className="text-sm text-muted-foreground">Level {profile?.level || 1} • {profile?.current_streak || 0} day streak</p>
             <div className="flex items-center gap-2 mt-1">
               <Zap className="w-3 h-3 text-xp-glow" />
-              <span className="text-xs text-xp-glow font-mono-time">12,450 XP</span>
+              <span className="text-xs text-xp-glow font-mono-time">{profile?.total_xp?.toLocaleString() || 0} XP</span>
             </div>
           </div>
           <Button variant="outline" size="sm">Edit</Button>
@@ -302,8 +308,15 @@ export const SettingsScreen: React.FC = () => {
 
       {/* Logout */}
       <section className="px-4 py-4">
-        <Button variant="danger" className="w-full">
-          <LogOut className="w-4 h-4" />
+        <Button 
+          variant="destructive" 
+          className="w-full"
+          onClick={async () => {
+            await signOut();
+            navigate('/auth');
+          }}
+        >
+          <LogOut className="w-4 h-4 mr-2" />
           Sign Out
         </Button>
       </section>
