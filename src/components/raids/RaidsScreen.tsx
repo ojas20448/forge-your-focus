@@ -1,21 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Users, Zap, Clock, Target, ChevronRight, Crown, Swords, Shield, Plus, X, Loader2 } from 'lucide-react';
+import { Trophy, Users, Zap, Clock, Target, ChevronRight, Crown, Swords, Shield, Plus, X, Loader2, Medal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useRaids, RaidMember } from '@/hooks/useRaids';
 import { useProfile } from '@/hooks/useProfile';
+import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { format, addDays } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+
+interface RaidLeaderboardEntry {
+  rank: number;
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  xp_contributed: number;
+  focus_hours: number;
+  isYou: boolean;
+}
 
 export const RaidsScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'raids' | 'league'>('raids');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [raidMembers, setRaidMembers] = useState<Record<string, RaidMember[]>>({});
+  const [raidLeaderboards, setRaidLeaderboards] = useState<Record<string, RaidLeaderboardEntry[]>>({});
+  const [selectedRaid, setSelectedRaid] = useState<string | null>(null);
   
   const { raids, loading, createRaid, joinRaid, getRaidMembers } = useRaids();
   const { profile } = useProfile();
+  const { user } = useAuth();
 
   const [newRaid, setNewRaid] = useState({
     name: '',
@@ -25,13 +40,45 @@ export const RaidsScreen: React.FC = () => {
     reward: '2x XP Weekend'
   });
 
-  // Fetch members for each raid
+  // Fetch members and build leaderboards for each raid
   useEffect(() => {
-    raids.forEach(async (raid) => {
-      const members = await getRaidMembers(raid.id);
-      setRaidMembers(prev => ({ ...prev, [raid.id]: members }));
-    });
-  }, [raids]);
+    const fetchRaidData = async () => {
+      for (const raid of raids) {
+        const members = await getRaidMembers(raid.id);
+        setRaidMembers(prev => ({ ...prev, [raid.id]: members }));
+
+        // Build leaderboard with profile data
+        const leaderboard: RaidLeaderboardEntry[] = await Promise.all(
+          members
+            .sort((a, b) => b.xp_contributed - a.xp_contributed)
+            .map(async (member, index) => {
+              // Fetch profile for display name
+              const { data: memberProfile } = await supabase
+                .from('profiles')
+                .select('display_name, avatar_url')
+                .eq('user_id', member.user_id)
+                .maybeSingle();
+
+              return {
+                rank: index + 1,
+                user_id: member.user_id,
+                display_name: memberProfile?.display_name || 'Anonymous',
+                avatar_url: memberProfile?.avatar_url,
+                xp_contributed: member.xp_contributed,
+                focus_hours: Number(member.focus_hours),
+                isYou: member.user_id === user?.id,
+              };
+            })
+        );
+
+        setRaidLeaderboards(prev => ({ ...prev, [raid.id]: leaderboard }));
+      }
+    };
+
+    if (raids.length > 0) {
+      fetchRaidData();
+    }
+  }, [raids, user?.id]);
 
   const handleCreateRaid = async () => {
     if (!newRaid.name.trim()) return;
@@ -55,7 +102,15 @@ export const RaidsScreen: React.FC = () => {
     });
   };
 
-  const leaderboard = [
+  const getRankIcon = (rank: number) => {
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return null;
+  };
+
+  // Global leaderboard (for league tab)
+  const globalLeaderboard = [
     { rank: 1, name: 'PhysicsMaster', xp: 45200, avatar: '🏆' },
     { rank: 2, name: 'StudyKing', xp: 42100, avatar: '👑' },
     { rank: 3, name: 'FocusQueen', xp: 38900, avatar: '💎' },
@@ -263,7 +318,7 @@ export const RaidsScreen: React.FC = () => {
               Leaderboard
             </h2>
             <div className="space-y-2">
-              {leaderboard.map((player) => (
+              {globalLeaderboard.map((player) => (
                 <div
                   key={player.rank}
                   className={cn(
