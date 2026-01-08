@@ -16,6 +16,8 @@ type EnergyProfile = 'morning_lark' | 'night_owl' | 'balanced';
 interface OnboardingData {
   name: string;
   yearGoal: string;
+  goalWeeklyHours: number; // Hours per week for this specific goal
+  goalPreferredTime: 'morning' | 'afternoon' | 'evening' | 'night' | 'flexible';
   energyProfile: EnergyProfile;
   weeklyHours: number;
   manifestationEnabled: boolean;
@@ -28,12 +30,14 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   const [data, setData] = useState<OnboardingData>({
     name: '',
     yearGoal: '',
+    goalWeeklyHours: 10,
+    goalPreferredTime: 'flexible',
     energyProfile: 'balanced',
     weeklyHours: 20,
     manifestationEnabled: true
   });
 
-  const totalSteps = 5;
+  const totalSteps = 7; // Increased from 5 to 7
   const progress = ((step + 1) / totalSteps) * 100;
 
   const energyProfiles = [
@@ -43,6 +47,16 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   ];
 
   const weeklyHoursOptions = [10, 15, 20, 25, 30, 40];
+  
+  const goalHoursOptions = [5, 10, 15, 20, 25, 30];
+  
+  const timePreferences = [
+    { id: 'morning' as const, label: '🌅 Morning', time: '6am-12pm', desc: 'Fresh start' },
+    { id: 'afternoon' as const, label: '☀️ Afternoon', time: '12pm-5pm', desc: 'Productive hours' },
+    { id: 'evening' as const, label: '🌆 Evening', time: '5pm-9pm', desc: 'After-work focus' },
+    { id: 'night' as const, label: '🌙 Night', time: '9pm-1am', desc: 'Quiet hours' },
+    { id: 'flexible' as const, label: '🔄 Flexible', time: 'Anytime', desc: 'No preference' },
+  ];
 
   const handleNext = async () => {
     if (step < totalSteps - 1) {
@@ -75,14 +89,14 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
       if (profileError) throw profileError;
 
-      // 2. Create year goal
+      // 2. Create year goal with time allocation
       const targetDate = format(new Date(2026, 11, 31), 'yyyy-MM-dd'); // Dec 31, 2026
       const { error: goalError } = await supabase
         .from('goals')
         .insert({
           user_id: user.id,
           title: data.yearGoal,
-          description: `Year goal set during onboarding on ${format(new Date(), 'MMM dd, yyyy')}`,
+          description: `📅 ${data.goalWeeklyHours} hrs/week | ⏰ Preferred: ${data.goalPreferredTime}\n\nGoal set on ${format(new Date(), 'MMM dd, yyyy')}`,
           type: 'year',
           target_date: targetDate,
           is_active: true,
@@ -104,6 +118,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   const canProceed = () => {
     switch (step) {
       case 1: return data.name.trim().length > 0;
+      case 3: return data.goalWeeklyHours > 0;
+      case 4: return data.goalPreferredTime !== null;
       case 2: return data.yearGoal.trim().length > 0;
       default: return true;
     }
@@ -202,8 +218,134 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           </div>
         )}
 
-        {/* Step 3: Energy Profile */}
+        {/* Step 3: Goal Weekly Hours */}
         {step === 3 && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Time allocation for this goal
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                How many hours per week will you dedicate to: <span className="font-semibold text-foreground">{data.yearGoal}</span>
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {goalHoursOptions.map((hours) => (
+                <button
+                  key={hours}
+                  onClick={() => setData({ ...data, goalWeeklyHours: hours })}
+                  className={cn(
+                    "p-4 rounded-xl border text-center transition-all",
+                    data.goalWeeklyHours === hours
+                      ? "bg-primary/10 border-primary"
+                      : "bg-card border-border hover:border-muted-foreground/30"
+                  )}
+                >
+                  <p className={cn(
+                    "text-2xl font-bold font-mono-time",
+                    data.goalWeeklyHours === hours ? "text-primary" : "text-foreground"
+                  )}>
+                    {hours}
+                  </p>
+                  <p className="text-xs text-muted-foreground">hrs/week</p>
+                </button>
+              ))}
+            </div>
+            <div className="p-4 rounded-xl bg-card/50 border border-primary/20">
+              <p className="text-xs text-muted-foreground">
+                💡 Tip: This is just for <span className="font-semibold text-foreground">"{data.yearGoal}"</span>. You'll set your total weekly commitment next.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Goal Preferred Time */}
+        {step === 4 && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                When to work on this goal?
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                AI will prioritize scheduling tasks for this goal during your preferred time.
+              </p>
+            </div>
+            <div className="space-y-3">
+              {timePreferences.map((pref) => (
+                <button
+                  key={pref.id}
+                  onClick={() => setData({ ...data, goalPreferredTime: pref.id })}
+                  className={cn(
+                    "w-full p-4 rounded-xl border flex items-center justify-between transition-all",
+                    data.goalPreferredTime === pref.id
+                      ? "bg-primary/10 border-primary"
+                      : "bg-card border-border hover:border-muted-foreground/30"
+                  )}
+                >
+                  <div className="text-left">
+                    <p className="font-semibold text-foreground">{pref.label}</p>
+                    <p className="text-xs text-muted-foreground">{pref.time} • {pref.desc}</p>
+                  </div>
+                  {data.goalPreferredTime === pref.id && (
+                    <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-white" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Review Goal */}
+        {step === 5 && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Review your goal setup
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                Make sure everything looks good before we continue.
+              </p>
+            </div>
+            <div className="p-6 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/30">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <Target className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-foreground mb-1">2026 Main Goal</h3>
+                  <p className="text-foreground">{data.yearGoal}</p>
+                </div>
+              </div>
+              <div className="space-y-3 mt-4 pt-4 border-t border-primary/20">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Time commitment</span>
+                  <span className="text-sm font-semibold text-foreground">{data.goalWeeklyHours} hours/week</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Preferred time</span>
+                  <span className="text-sm font-semibold text-foreground capitalize">
+                    {timePreferences.find(p => p.id === data.goalPreferredTime)?.label.split(' ')[1] || 'Flexible'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Target date</span>
+                  <span className="text-sm font-semibold text-foreground">Dec 31, 2026</span>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setStep(2)}
+              className="w-full p-3 rounded-xl bg-secondary/50 text-sm text-foreground hover:bg-secondary transition-colors"
+            >
+              ← Edit goal details
+            </button>
+          </div>
+        )}
+
+        {/* Step 6: Energy Profile */}
+        {step === 6 && (
           <div className="space-y-6 animate-in fade-in duration-500">
             <div>
               <h2 className="text-2xl font-bold text-foreground mb-2">
@@ -244,15 +386,15 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           </div>
         )}
 
-        {/* Step 4: Weekly Hours */}
-        {step === 4 && (
+        {/* Step 7: Total Weekly Hours */}
+        {step === 7 && (
           <div className="space-y-6 animate-in fade-in duration-500">
             <div>
               <h2 className="text-2xl font-bold text-foreground mb-2">
-                Weekly focus commitment
+                Total weekly focus commitment
               </h2>
               <p className="text-muted-foreground text-sm">
-                How many hours per week can you dedicate to deep work?
+                How many hours per week can you dedicate to ALL deep work? (Including your {data.goalWeeklyHours}h for "{data.yearGoal}")
               </p>
             </div>
             <div className="grid grid-cols-3 gap-3">

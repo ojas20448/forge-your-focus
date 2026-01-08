@@ -68,9 +68,12 @@ ON public.raid_members
 FOR SELECT
 USING (
     EXISTS (
-        SELECT 1 FROM public.raid_members rm
-        WHERE rm.raid_id = raid_members.raid_id
-        AND rm.user_id = auth.uid()
+        SELECT 1 FROM public.raids r
+        WHERE r.id = raid_members.raid_id
+        AND (r.created_by = auth.uid() OR EXISTS (
+            SELECT 1 FROM public.raid_members rm
+            WHERE rm.raid_id = r.id AND rm.user_id = auth.uid()
+        ))
     )
 );
 

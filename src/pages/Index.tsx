@@ -16,12 +16,14 @@ import { RaidsScreen } from '@/components/raids/RaidsScreen';
 import { StatsScreen } from '@/components/stats/StatsScreen';
 import { SettingsScreen } from '@/components/settings/SettingsScreen';
 import { AchievementsScreen } from '@/components/achievements/AchievementsScreen';
+import { ContractsOverviewScreen } from '@/components/contracts/ContractsOverviewScreen';
 import { AISchedulerModal } from '@/components/scheduler/AISchedulerModal';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { DailyCheckinModal } from '@/components/checkin/DailyCheckinModal';
 import { TaskDetailModal } from '@/components/tasks/TaskDetailModal';
 import { QuickAddTaskModal } from '@/components/tasks/QuickAddTaskModal';
 import { AppTourModal } from '@/components/onboarding/AppTourModal';
+import { CameraPermissionModal } from '@/components/CameraPermissionModal';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Task, TaskStatus, TaskType } from '@/types/focusforge';
 import { useToast } from '@/hooks/use-toast';
@@ -67,11 +69,12 @@ const Index = () => {
   const [showCheckinModal, setShowCheckinModal] = useState(false);
   const [showQuickAddTask, setShowQuickAddTask] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showCameraPermission, setShowCameraPermission] = useState(false);
   const { toast } = useToast();
 
   // Fetch tasks and goals from database
   const { tasks: dbTasks, loading: tasksLoading, refetch: refetchTasks } = useTasks(selectedDate);
-  const { goals, yearGoals, loading: goalsLoading } = useGoals();
+  const { goals, yearGoals, loading: goalsLoading, refetch: refetchGoals } = useGoals();
   const { hasCheckedInToday, loading: checkinLoading } = useDailyCheckin();
   const { checkAndApplyDecay } = useTaskDecay();
 
@@ -143,10 +146,22 @@ const Index = () => {
   const handleOnboardingComplete = () => {
     localStorage.setItem(ONBOARDING_KEY, 'true');
     setHasOnboarded(true);
+    
+    // Refetch goals to show newly created goal from onboarding
+    setTimeout(() => {
+      refetchGoals();
+    }, 200);
+    
     setShowAppTour(true);
+    
+    // Request camera permission after onboarding
+    setTimeout(() => {
+      setShowCameraPermission(true);
+    }, 2000); // Show 2 seconds after tour starts
+    
     toast({ 
       title: "Welcome to FocusForge!", 
-      description: "Let's take a quick tour of the app." 
+      description: "Your goal has been created! Let's explore the app." 
     });
   };
 
@@ -248,6 +263,12 @@ const Index = () => {
         return (
           <ErrorBoundary>
             <RaidsScreen />
+          </ErrorBoundary>
+        );
+      case 'contracts':
+        return (
+          <ErrorBoundary>
+            <ContractsOverviewScreen onBack={() => setActiveTab('home')} />
           </ErrorBoundary>
         );
       case 'stats':
@@ -371,6 +392,9 @@ const Index = () => {
         isOpen={showAppTour}
         onClose={() => setShowAppTour(false)}
       />
+      {showCameraPermission && (
+        <CameraPermissionModal onClose={() => setShowCameraPermission(false)} />
+      )}
     </MobileLayout>
   );
 };

@@ -1,8 +1,8 @@
 import React from 'react';
-import { Home, Target, Trophy, BarChart3, Settings } from 'lucide-react';
+import { Home, Target, Trophy, BarChart3, Settings, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type TabId = 'home' | 'goals' | 'raids' | 'stats' | 'settings';
+export type TabId = 'home' | 'goals' | 'raids' | 'contracts' | 'stats' | 'settings';
 
 interface BottomNavigationProps {
   activeTab: TabId;
@@ -14,8 +14,8 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab, o
     { icon: <Home className="w-5 h-5" />, label: 'Timeline', id: 'home' },
     { icon: <Target className="w-5 h-5" />, label: 'Goals', id: 'goals' },
     { icon: <Trophy className="w-5 h-5" />, label: 'Raids', id: 'raids' },
+    { icon: <FileText className="w-5 h-5" />, label: 'Contracts', id: 'contracts' },
     { icon: <BarChart3 className="w-5 h-5" />, label: 'Stats', id: 'stats' },
-    { icon: <Settings className="w-5 h-5" />, label: 'Settings', id: 'settings' },
   ];
 
   return (
@@ -27,7 +27,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab, o
               key={item.id}
               onClick={() => onTabChange(item.id)}
               className={cn(
-                "flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-200 relative",
+                "flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 relative",
                 activeTab === item.id
                   ? "text-primary bg-primary/10"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
@@ -39,12 +39,28 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab, o
               )}>
                 {item.icon}
               </span>
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className="text-[9px] font-medium">{item.label}</span>
               {activeTab === item.id && (
                 <div className="absolute bottom-0 w-8 h-0.5 bg-primary rounded-full" />
               )}
             </button>
           ))}
+          {/* Settings moved to header/menu */}
+          <button
+            onClick={() => onTabChange('settings')}
+            className={cn(
+              "flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 relative",
+              activeTab === 'settings'
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+            )}
+          >
+            <Settings className="w-5 h-5" />
+            <span className="text-[9px] font-medium">Settings</span>
+            {activeTab === 'settings' && (
+              <div className="absolute bottom-0 w-8 h-0.5 bg-primary rounded-full" />
+            )}
+          </button>
         </div>
       </div>
     </nav>
