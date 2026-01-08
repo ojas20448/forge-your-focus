@@ -463,8 +463,10 @@ export type Database = {
           energy_profile: string | null
           id: string
           last_activity_date: string | null
+          last_manifestation_date: string | null
           level: number | null
           longest_streak: number | null
+          manifestation_streak: number | null
           onboarding_completed: boolean | null
           sleep_time: string | null
           timezone: string | null
@@ -485,8 +487,10 @@ export type Database = {
           energy_profile?: string | null
           id?: string
           last_activity_date?: string | null
+          last_manifestation_date?: string | null
           level?: number | null
           longest_streak?: number | null
+          manifestation_streak?: number | null
           onboarding_completed?: boolean | null
           sleep_time?: string | null
           timezone?: string | null
@@ -507,8 +511,10 @@ export type Database = {
           energy_profile?: string | null
           id?: string
           last_activity_date?: string | null
+          last_manifestation_date?: string | null
           level?: number | null
           longest_streak?: number | null
+          manifestation_streak?: number | null
           onboarding_completed?: boolean | null
           sleep_time?: string | null
           timezone?: string | null
