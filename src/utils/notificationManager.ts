@@ -1,4 +1,4 @@
-// Browser Push Notifications for FocusForge
+// Browser Push Notifications for Xecute
 // Uses native Notification API - works on all modern browsers
 
 export type NotificationType = 'task_reminder' | 'raid_alert' | 'streak_warning' | 'challenge' | 'achievement' | 'affirmation';

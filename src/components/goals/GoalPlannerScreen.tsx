@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Sparkles, Calendar, Clock, Target, ChevronRight, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { useGoals } from '@/hooks/useGoals';
+import { useToast } from '@/hooks/use-toast';
+import { generateMilestonePlan } from '@/utils/geminiScheduler';
 
 interface Milestone {
   month: string;
@@ -25,31 +28,58 @@ interface GoalPlannerScreenProps {
 
 export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({ 
   onBack,
-  goalTitle = "Crack JEE 2026"
+  goalTitle
 }) => {
+  const { yearGoals } = useGoals();
+  const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showPlan, setShowPlan] = useState(true);
+  const [showPlan, setShowPlan] = useState(false);
   const [acceptedMilestones, setAcceptedMilestones] = useState<number[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  
+  // Use the first year goal or provided goal title
+  const activeGoal = yearGoals[0];
+  const displayTitle = goalTitle || activeGoal?.title || "Your Goal";
+  
+  useEffect(() => {
+    // Check if goal has existing milestones
+    if (activeGoal?.success_criteria && Array.isArray((activeGoal.success_criteria as any)?.milestones)) {
+      const existingMilestones = (activeGoal.success_criteria as any).milestones.map((m: string, i: number) => ({
+        month: new Date(2026, i, 1).toLocaleString('default', { month: 'short', year: 'numeric' }),
+        title: m,
+        requiredHours: 40 + (i * 5), // Default hours
+        isComplete: false
+      }));
+      setMilestones(existingMilestones);
+      setShowPlan(true);
+    }
+  }, [activeGoal]);
 
-  const milestones: Milestone[] = [
-    { month: "Jan 2026", title: "Complete Physics Mechanics", requiredHours: 45, isComplete: false },
-    { month: "Feb 2026", title: "Master Organic Chemistry", requiredHours: 50, isComplete: false },
-    { month: "Mar 2026", title: "Finish Calculus & Algebra", requiredHours: 55, isComplete: false },
-    { month: "Apr 2026", title: "30 Mock Tests Completed", requiredHours: 60, isComplete: false },
-    { month: "May 2026", title: "Final Revision Sprint", requiredHours: 40, isComplete: false },
-  ];
+  // Calculate current week sprint based on first upcoming milestone
+  const currentWeekSprint: WeeklySprint = React.useMemo(() => {
+    const currentMilestone = milestones.find(m => !m.isComplete);
+    if (!currentMilestone) {
+      return {
+        week: 1,
+        focus: displayTitle,
+        hours: 0,
+        tasks: ['No active milestones']
+      };
+    }
 
-  const currentWeekSprint: WeeklySprint = {
-    week: 1,
-    focus: "Kinematics & Newton's Laws",
-    hours: 12,
-    tasks: [
-      "Read Chapter 1-3 Physics",
-      "Solve 50 Kinematics problems",
-      "Watch video lectures (3hrs)",
-      "Complete practice test #1"
-    ]
-  };
+    const weeklyHours = Math.ceil(currentMilestone.requiredHours / 4); // Distribute over ~4 weeks
+    return {
+      week: 1,
+      focus: currentMilestone.title,
+      hours: weeklyHours,
+      tasks: [
+        `Focus on: ${currentMilestone.title}`,
+        `Target: ${weeklyHours} hours this week`,
+        `Review progress mid-week`,
+        `Complete milestone by end of ${currentMilestone.month}`
+      ]
+    };
+  }, [milestones, displayTitle]);
 
   const handleAcceptMilestone = (index: number) => {
     setAcceptedMilestones(prev => 
@@ -57,12 +87,77 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
     );
   };
 
-  const handleGeneratePlan = () => {
+  const handleGeneratePlan = async () => {
+    if (!displayTitle) {
+      toast({
+        title: 'No goal selected',
+        description: 'Please create a year goal first.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setIsGenerating(true);
-    setTimeout(() => {
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      
+      if (apiKey && apiKey !== 'YOUR_API_KEY_HERE' && activeGoal) {
+        // Use AI to generate milestones
+        const aiMilestones = await generateMilestonePlan(
+          activeGoal.title,
+          activeGoal.description || '',
+          activeGoal.target_date || new Date(2026, 11, 31).toISOString(),
+          20, // Default weekly hours
+          apiKey
+        );
+        
+        const formattedMilestones = aiMilestones.map(m => ({
+          ...m,
+          isComplete: false
+        }));
+        
+        setMilestones(formattedMilestones);
+        setShowPlan(true);
+        
+        toast({
+          title: 'AI Plan Generated! 🤖',
+          description: `Created ${formattedMilestones.length} smart milestones for your goal.`
+        });
+      } else {
+        // Fallback to basic generation
+        const monthsToGoal = activeGoal?.target_date 
+          ? Math.ceil((new Date(activeGoal.target_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30))
+          : 5;
+        
+        const generatedMilestones: Milestone[] = Array.from({ length: Math.min(monthsToGoal, 12) }, (_, i) => {
+          const month = new Date();
+          month.setMonth(month.getMonth() + i + 1);
+          return {
+            month: month.toLocaleString('default', { month: 'short', year: 'numeric' }),
+            title: `Milestone ${i + 1}: Progress toward ${displayTitle}`,
+            requiredHours: 40 + (i * 5),
+            isComplete: false
+          };
+        });
+
+        setMilestones(generatedMilestones);
+        setShowPlan(true);
+        
+        toast({
+          title: 'Plan generated!',
+          description: `Created ${generatedMilestones.length} milestones. Add Gemini API key for AI-powered planning.`
+        });
+      }
+    } catch (error) {
+      console.error('Error generating plan:', error);
+      toast({
+        title: 'Generation failed',
+        description: 'Could not generate milestone plan. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
       setIsGenerating(false);
-      setShowPlan(true);
-    }, 2000);
+    }
   };
 
   const totalHours = milestones.reduce((sum, m) => sum + m.requiredHours, 0);
@@ -85,7 +180,7 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
           </Button>
           <div className="flex-1">
             <h1 className="text-lg font-bold text-foreground">Goal Planner</h1>
-            <p className="text-xs text-muted-foreground">{goalTitle}</p>
+            <p className="text-xs text-muted-foreground">{displayTitle}</p>
           </div>
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20">
             <Sparkles className="w-3.5 h-3.5 text-primary" />

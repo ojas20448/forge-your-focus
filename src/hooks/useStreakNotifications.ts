@@ -51,7 +51,7 @@ export function useStreakNotifications() {
     }
 
     if (Notification.permission === 'granted') {
-      new Notification('FocusForge Reminder', {
+      new Notification('Xecute Reminder', {
         body: message,
         icon: '/favicon.ico',
         tag: 'focus-reminder',

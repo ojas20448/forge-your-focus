@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { User, Sparkles } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { BottomNavigation, TabId } from '@/components/layout/BottomNavigation';
 import { DateStrip } from '@/components/dashboard/DateStrip';
@@ -33,10 +34,11 @@ import { useTasks, DbTask } from '@/hooks/useTasks';
 import { useGoals } from '@/hooks/useGoals';
 import { useDailyCheckin } from '@/hooks/useDailyCheckin';
 import { useTaskDecay } from '@/hooks/useTaskDecay';
+import { taskDecayService } from '@/utils/taskDecayService';
 import { Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
-const ONBOARDING_KEY = 'focusforge_onboarded';
+const ONBOARDING_KEY = 'xecute_onboarded';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -77,6 +79,20 @@ const Index = () => {
   const { goals, yearGoals, loading: goalsLoading, refetch: refetchGoals } = useGoals();
   const { hasCheckedInToday, loading: checkinLoading } = useDailyCheckin();
   const { checkAndApplyDecay } = useTaskDecay();
+
+  // Start automatic task decay service
+  useEffect(() => {
+    if (user && hasOnboarded) {
+      taskDecayService.start({
+        decayCheckInterval: 6 * 60 * 60 * 1000, // 6 hours
+      });
+      console.log('Task decay automation started');
+      
+      return () => {
+        taskDecayService.stop();
+      };
+    }
+  }, [user, hasOnboarded]);
 
   // Check for decayed tasks on mount
   useEffect(() => {
@@ -160,7 +176,7 @@ const Index = () => {
     }, 2000); // Show 2 seconds after tour starts
     
     toast({ 
-      title: "Welcome to FocusForge!", 
+      title: "Welcome to Xecute!", 
       description: "Your goal has been created! Let's explore the app." 
     });
   };
@@ -291,36 +307,68 @@ const Index = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-2xl font-bold text-foreground tracking-tight">
-                    Focus<span className="text-primary">Forge</span>
+                    Xecute
                   </h1>
                   <p className="text-xs text-muted-foreground font-medium">
                     {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                   </p>
                 </div>
-                <div className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-                  <span className="text-xs font-bold text-primary font-mono-time">LVL {userStats.level}</span>
+                <div className="flex items-center gap-2">
+                  <div className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+                    <span className="text-xs font-bold text-primary font-mono-time">LVL {userStats.level}</span>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('settings')}
+                    className="w-9 h-9 rounded-lg bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors"
+                    aria-label="Profile"
+                  >
+                    <User className="w-4 h-4 text-muted-foreground" />
+                  </button>
                 </div>
               </div>
             </header>
             <DateStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} dayStatuses={{}} />
-            <StatsBar stats={userStats} />
-            {yearGoals.length > 0 && (
-              <GoalOverviewCard 
-                yearGoal={{
-                  id: yearGoals[0].id,
-                  type: 'year',
-                  title: yearGoals[0].title,
-                  description: yearGoals[0].description || '',
-                  target_date: yearGoals[0].target_date || format(new Date(2026, 11, 31), 'yyyy-MM-dd'),
-                  progress_percent: yearGoals[0].progress || 0,
-                  is_active: yearGoals[0].is_active ?? true,
-                  health_score: 70,
-                }} 
-                nextMilestone={(yearGoals[0].success_criteria as { milestones?: string[] } | null)?.milestones?.[0] || "Keep building momentum"} 
-                daysUntilMilestone={30} 
-              />
+            <div data-tour="stats">
+              <StatsBar stats={userStats} />
+            </div>
+            
+            {/* AI Coaching Message */}
+            {userStats.current_streak > 0 && (
+              <div className="mx-4 mt-4 p-3 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-semibold text-primary">AI Coach</span>
+                </div>
+                <p className="text-sm text-foreground">
+                  {userStats.current_streak >= 7 
+                    ? `Amazing! ${userStats.current_streak} day streak! You're building unstoppable momentum! 🔥`
+                    : userStats.current_streak >= 3
+                    ? `${userStats.current_streak} days strong! Keep the momentum going! 💪`
+                    : `Day ${userStats.current_streak}! Every day counts. Stay consistent! ⚡`
+                  }
+                </p>
+              </div>
             )}
-            <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+            
+            {yearGoals.length > 0 && (
+              <div data-tour="goals">
+                <GoalOverviewCard 
+                  yearGoal={{
+                    id: yearGoals[0].id,
+                    type: 'year',
+                    title: yearGoals[0].title,
+                    description: yearGoals[0].description || '',
+                    target_date: yearGoals[0].target_date || format(new Date(2026, 11, 31), 'yyyy-MM-dd'),
+                    progress_percent: yearGoals[0].progress || 0,
+                    is_active: yearGoals[0].is_active ?? true,
+                    health_score: 70,
+                  }} 
+                  nextMilestone={(yearGoals[0].success_criteria as { milestones?: string[] } | null)?.milestones?.[0] || "Keep building momentum"} 
+                  daysUntilMilestone={30} 
+                />
+              </div>
+            )}
+            <div className="px-4 pt-4 pb-2 flex items-center justify-between" data-tour="timeline">
               <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Today's Timeline</h2>
               <span className="text-xs text-muted-foreground font-mono-time">
                 {tasks.filter(t => t.status === 'completed').length}/{tasks.length} completed
@@ -347,7 +395,9 @@ const Index = () => {
             ) : (
               <Timeline tasks={tasks} onTaskClick={handleTaskClick} />
             )}
-            <FloatingActionButton timeOfDay={timeOfDay} onAction={handleFABAction} />
+            <div data-tour="fab">
+              <FloatingActionButton timeOfDay={timeOfDay} onAction={handleFABAction} />
+            </div>
           </>
         );
     }

@@ -90,7 +90,7 @@ class GeminiScheduler {
   private buildPrompt(request: SchedulingRequest): string {
     const peakHours = this.getPeakHours(request.energyProfile);
     
-    return `You are an AI productivity coach for FocusForge. Parse the user's request and create an optimized task schedule.
+    return `You are an AI productivity coach for Xecute. Parse the user's request and create an optimized task schedule.
 
 USER INPUT: "${request.userInput}"
 
@@ -177,6 +177,190 @@ Return JSON: {"title": "...", "duration": minutes, "priority": "high/medium/low"
         priority: 'medium'
       };
     }
+  }
+}
+
+/**
+ * Generate milestone plan for a year goal using AI
+ */
+export async function generateMilestonePlan(
+  goalTitle: string,
+  goalDescription: string,
+  targetDate: string,
+  weeklyHours: number,
+  apiKey: string
+): Promise<Array<{ month: string; title: string; requiredHours: number }>> {
+  if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') {
+    throw new Error('Gemini API key not configured');
+  }
+
+  const monthsUntilTarget = Math.ceil(
+    (new Date(targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30)
+  );
+
+  const prompt = `You are an AI coach for Xecute helping break down long-term goals into actionable milestones.
+
+GOAL: ${goalTitle}
+DESCRIPTION: ${goalDescription}
+TARGET DATE: ${targetDate}
+AVAILABLE TIME: ${weeklyHours} hours/week
+TIMELINE: ${monthsUntilTarget} months
+
+Create a realistic milestone breakdown. Each milestone should:
+1. Be achievable in ~1 month
+2. Build on previous milestones
+3. Have specific, measurable outcomes
+4. Distribute ${weeklyHours}hrs/week effectively
+
+Return JSON array:
+[
+  {
+    "month": "Jan 2026",
+    "title": "Specific milestone name",
+    "requiredHours": 40
+  }
+]
+
+Return ONLY the JSON array, no markdown.`;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+        }),
+      }
+    );
+
+    const data = await response.json();
+    const textResponse = data.candidates[0].content.parts[0].text;
+    const jsonMatch = textResponse.match(/\[[\s\S]*\]/);
+    
+    if (!jsonMatch) {
+      throw new Error('Failed to parse milestone plan');
+    }
+
+    return JSON.parse(jsonMatch[0]);
+  } catch (error) {
+    console.error('Error generating milestone plan:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get AI coaching message based on user's progress
+ */
+export async function getCoachingMessage(
+  context: {
+    currentStreak: number;
+    todayProgress: number;
+    activeGoals: number;
+    recentAchievements: string[];
+  },
+  apiKey: string
+): Promise<string> {
+  if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') {
+    return "Keep pushing! You're doing great! 💪";
+  }
+
+  const prompt = `You are a motivational AI coach for Xecute. Give a SHORT, energizing message (max 15 words).
+
+USER STATUS:
+- Streak: ${context.currentStreak} days
+- Today's progress: ${context.todayProgress}%
+- Active goals: ${context.activeGoals}
+- Recent wins: ${context.recentAchievements.join(', ') || 'None yet'}
+
+Give ONE sentence of motivation. Be specific to their situation. Use emojis. Be encouraging but not pushy.`;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.8, maxOutputTokens: 128 },
+        }),
+      }
+    );
+
+    const data = await response.json();
+    return data.candidates[0].content.parts[0].text.trim().replace(/"/g, '');
+  } catch (error) {
+    console.error('Error getting coaching message:', error);
+    return "Stay focused and execute! 🎯";
+  }
+}
+
+/**
+ * Suggest tasks based on current goals and energy level
+ */
+export async function suggestNextTasks(
+  goals: Array<{ title: string; progress: number }>,
+  energyLevel: 'high' | 'medium' | 'low',
+  currentTime: string,
+  apiKey: string
+): Promise<Array<{ title: string; duration: number; reason: string }>> {
+  if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') {
+    return [];
+  }
+
+  const prompt = `You are an AI productivity assistant for Xecute. Suggest 3 tasks for RIGHT NOW.
+
+CONTEXT:
+- Current time: ${currentTime}
+- Energy level: ${energyLevel}
+- Active goals: ${JSON.stringify(goals)}
+
+RULES:
+- High energy = challenging tasks
+- Medium energy = moderate tasks
+- Low energy = easy wins or learning
+- Consider time of day
+- Link to goals
+
+Return JSON:
+[
+  {
+    "title": "Specific task name",
+    "duration": 45,
+    "reason": "Why now (10 words max)"
+  }
+]
+
+Return ONLY JSON array.`;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 512 },
+        }),
+      }
+    );
+
+    const data = await response.json();
+    const textResponse = data.candidates[0].content.parts[0].text;
+    const jsonMatch = textResponse.match(/\[[\s\S]*\]/);
+    
+    if (!jsonMatch) {
+      return [];
+    }
+
+    return JSON.parse(jsonMatch[0]);
+  } catch (error) {
+    console.error('Error suggesting tasks:', error);
+    return [];
   }
 }
 

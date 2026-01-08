@@ -120,7 +120,7 @@ export default function Auth() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            FocusForge
+            Xecute
           </CardTitle>
           <CardDescription>
             Transform your productivity with AI-powered focus sessions

@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.focusforge.app',
-  appName: 'FocusForge',
+  appId: 'com.xecute.app',
+  appName: 'Xecute',
   webDir: 'dist',
   server: {
     androidScheme: 'https'

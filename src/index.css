@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    /* FocusForge Dark Industrial Theme */
+    /* Xecute Dark Industrial Theme */
     --background: 220 20% 6%;
     --foreground: 210 20% 94%;
 
@@ -238,6 +238,16 @@
     }
     50% {
       border-color: hsl(var(--primary));
+    }
+  }
+
+  /* Tour spotlight pulse animation */
+  @keyframes pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 4px hsla(var(--primary), 0.5), 0 0 0 9999px rgba(0, 0, 0, 0.8);
+    }
+    50% {
+      box-shadow: 0 0 0 8px hsla(var(--primary), 0.7), 0 0 0 9999px rgba(0, 0, 0, 0.75);
     }
   }
 

@@ -89,7 +89,7 @@ interface PendingOperation<T = unknown> {
   timestamp: number;
 }
 
-const PENDING_OPS_KEY = 'focusforge_pending_ops';
+const PENDING_OPS_KEY = 'xecute_pending_ops';
 
 export function usePendingOperations() {
   const getPendingOps = (): PendingOperation[] => {

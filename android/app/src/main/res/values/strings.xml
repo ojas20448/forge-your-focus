@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">FocusForge</string>
-    <string name="title_activity_main">FocusForge</string>
-    <string name="package_name">com.focusforge.app</string>
-    <string name="custom_url_scheme">com.focusforge.app</string>
+    <string name="app_name">Xecute</string>
+    <string name="title_activity_main">Xecute</string>
+    <string name="package_name">com.xecute.app</string>
+    <string name="custom_url_scheme">com.xecute.app</string>
 </resources>

@@ -29,6 +29,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const existingContract = getContractForTask(task.id);
   const isCompleted = task.status === 'completed';
   const isOverdue = task.decay_level > 0;
+  
+  // Check if task is scheduled for later
+  const isScheduledForLater = new Date(task.scheduled_date) > new Date();
 
   if (!isOpen) return null;
 
@@ -176,10 +179,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   size="lg"
                   className="w-full gap-2"
                   onClick={onStartFocus}
+                  disabled={isScheduledForLater}
                 >
                   <Play className="w-5 h-5" />
-                  Start Focus Session
+                  {isScheduledForLater ? 'Scheduled for Later' : 'Start Focus Session'}
                 </Button>
+                
+                {isScheduledForLater && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    This task is scheduled for {new Date(task.scheduled_date).toLocaleString()}
+                  </p>
+                )}
                 
                 <div className="flex gap-3">
                   <Button

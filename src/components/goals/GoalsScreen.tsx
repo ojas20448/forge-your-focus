@@ -28,13 +28,32 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
     : 0;
 
   const handleCreateGoal = async () => {
-    if (!newGoal.title.trim()) return;
+    if (!newGoal.title.trim()) {
+      console.log('Goal title is empty');
+      return;
+    }
     
+    console.log('Creating goal:', newGoal);
     setCreating(true);
-    await createGoal(newGoal);
-    setCreating(false);
-    setShowCreateModal(false);
-    setNewGoal({ title: '', description: '', type: 'month', target_date: '', color: '#8B5CF6' });
+    try {
+      const result = await createGoal(newGoal);
+      console.log('Goal creation result:', result);
+      if (result) {
+        setShowCreateModal(false);
+        setNewGoal({ title: '', description: '', type: 'month', target_date: '', color: '#8B5CF6' });
+        
+        // If it's a year goal, open the planner
+        if (newGoal.type === 'year' && onOpenPlanner) {
+          setTimeout(() => {
+            onOpenPlanner();
+          }, 500);
+        }
+      }
+    } catch (error) {
+      console.error('Goal creation error:', error);
+    } finally {
+      setCreating(false);
+    }
   };
 
   if (loading) {
@@ -193,7 +212,7 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
             onClick={() => setShowCreateModal(false)}
           />
           
-          <div className="relative w-full max-w-md bg-card border-t border-x border-border rounded-t-3xl max-h-[85vh] overflow-hidden animate-in slide-in-from-bottom duration-300">
+          <div className="relative w-full max-w-md bg-card border-t border-x border-border rounded-t-3xl max-h-[85vh] flex flex-col animate-in slide-in-from-bottom duration-300">
             <div className="flex items-center justify-between p-4 border-b border-border">
               <h2 className="text-lg font-bold text-foreground">Create Goal</h2>
               <Button variant="ghost" size="icon" onClick={() => setShowCreateModal(false)}>
@@ -201,7 +220,7 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
               </Button>
             </div>
 
-            <div className="p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
               <div>
                 <label className="text-sm font-medium text-foreground mb-1.5 block">Goal Type</label>
                 <div className="flex gap-2">
@@ -251,7 +270,9 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
                   className="bg-secondary/50"
                 />
               </div>
+            </div>
 
+            <div className="p-4 border-t border-border bg-card">
               <Button 
                 variant="glow" 
                 className="w-full" 

@@ -1,4 +1,4 @@
-package com.focusforge.app;
+package com.xecute.app;
 
 import com.getcapacitor.BridgeActivity;
 

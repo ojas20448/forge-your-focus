@@ -60,18 +60,24 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({ task, onTaskClick }) => {
         "w-full text-left ml-14 mr-4 p-4 rounded-2xl border transition-all duration-300 bg-card/80 backdrop-blur-sm",
         statusStyles[task.status],
         task.status === 'active' && 'scale-[1.02]',
-        hasDecay && 'border-destructive/30'
+        hasDecay && 'border-destructive/30',
+        // Visual decay animations
+        task.decay_level === 2 && 'animate-pulse border-rotten/50', // Rotten: pulsing
+        task.decay_level === 1 && 'opacity-90', // Overdue: slightly faded
       )}
     >
       <div className="flex items-start gap-3">
-        {/* Task type icon */}
+        {/* Task type icon with decay effect */}
         <div className={cn(
-          "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+          "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all",
           task.type === 'manifestation' 
             ? 'bg-manifestation/20 text-manifestation'
             : task.type === 'break'
             ? 'bg-secondary/50 text-muted-foreground'
-            : 'bg-primary/20 text-primary'
+            : 'bg-primary/20 text-primary',
+          // Decay visual effects on icon
+          task.decay_level === 2 && 'bg-rotten/20 text-rotten-foreground', // Rotten: change colors
+          task.decay_level === 1 && 'opacity-80', // Overdue: slightly dimmed
         )}>
           {taskIcons[task.type]}
         </div>

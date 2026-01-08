@@ -6,6 +6,8 @@ import { VisionBoardScreen } from './VisionBoardScreen';
 import { AffirmationEngine } from './AffirmationEngine';
 import { AffirmationSession } from './AffirmationSession';
 import { useAffirmations } from '@/hooks/useAffirmations';
+import { useProfile } from '@/hooks/useProfile';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ManifestationScreenProps {
   onBack?: () => void;
@@ -25,12 +27,38 @@ export const ManifestationScreen: React.FC<ManifestationScreenProps> = ({ onBack
     getActiveAffirmations,
     recordSession 
   } = useAffirmations();
+  
+  const { profile } = useProfile();
 
-  const manifestationStreak = 8; // TODO: Get from user profile
+  const manifestationStreak = profile?.manifestation_streak || 0;
   const activeAffirmations = getActiveAffirmations();
   const affirmationCompleted = isSessionCompletedToday('affirmation');
   const visualizationCompleted = isSessionCompletedToday('visualization');
   const journalCompleted = isSessionCompletedToday('journaling');
+
+  const handleSaveJournalEntry = async () => {
+    if (!journalEntry.trim()) return;
+
+    try {
+      await supabase
+        .from('journal_entries')
+        .insert({
+          user_id: profile?.user_id,
+          content: journalEntry,
+          type: 'quick_journal',
+          created_at: new Date().toISOString(),
+        });
+      
+      setJournalEntry('');
+      // Update manifestation streak
+      await supabase
+        .from('profiles')
+        .update({ manifestation_streak: (profile?.manifestation_streak || 0) + 1 })
+        .eq('user_id', profile?.user_id);
+    } catch (error) {
+      console.error('Failed to save journal entry:', error);
+    }
+  };
 
   if (viewMode === 'vision-board') {
     return <VisionBoardScreen onBack={() => setViewMode('main')} />;

@@ -135,11 +135,54 @@ class LeagueResetService {
 
       if (!users || users.length === 0) return;
 
-      // Note: current_league_tier is a number (0=bronze, 1=silver, etc.)
-      // This service uses string keys, so for full implementation, 
-      // we'd need to map tier numbers to tier names
-      // For now, log that reset would happen and reset weekly XP
+      // Group users by tier
+      const tierGroups: Record<number, typeof users> = {};
+      users.forEach(user => {
+        const tier = user.current_league_tier || 0;
+        if (!tierGroups[tier]) tierGroups[tier] = [];
+        tierGroups[tier].push(user);
+      });
+
+      // Process each tier for promotions/relegations
+      const promotionPromises: Promise<any>[] = [];
       
+      for (const [tierNumber, tierUsers] of Object.entries(tierGroups)) {
+        const tier = parseInt(tierNumber);
+        const tierName = this.getTierNameFromNumber(tier);
+        const tierConfig = LEAGUE_TIERS[tierName];
+        
+        if (!tierConfig || tierUsers.length === 0) continue;
+
+        // Sort by weekly XP
+        const sorted = [...tierUsers].sort((a, b) => (b.weekly_xp || 0) - (a.weekly_xp || 0));
+        
+        // Calculate cutoff indices
+        const promoteCount = Math.floor(sorted.length * tierConfig.promotionThreshold);
+        const relegateCount = Math.floor(sorted.length * tierConfig.relegationThreshold);
+
+        // Promote top performers (if not already at max tier)
+        if (tierConfig.nextTier && promoteCount > 0) {
+          const toPromote = sorted.slice(0, promoteCount);
+          toPromote.forEach(user => {
+            promotionPromises.push(this.promoteUser(user.id, tier + 1));
+          });
+        }
+
+        // Relegate bottom performers (if not already at min tier)
+        if (tierConfig.previousTier && relegateCount > 0) {
+          const toRelegate = sorted.slice(-relegateCount);
+          toRelegate.forEach(user => {
+            promotionPromises.push(this.relegateUser(user.id, tier - 1));
+          });
+        }
+      }
+
+      // Execute all promotions/relegations
+      await Promise.all(promotionPromises);
+
+      // Distribute season rewards to top performers
+      await this.distributeSeasonRewards(users);
+
       // Reset weekly XP for all users
       const resetPromises = users.map(user =>
         supabase
@@ -150,12 +193,7 @@ class LeagueResetService {
 
       await Promise.all(resetPromises);
       console.log(`Reset weekly XP for ${users.length} users`);
-
-      // TODO: Implement tier promotion/relegation logic
-      // This requires mapping between tier names (bronze/silver/etc) 
-      // and tier numbers (0/1/etc) used in the database
-      
-      console.log('Weekly league reset completed');
+      console.log('Weekly league reset completed with promotions/relegations');
       await hapticFeedback.trigger('success');
     } catch (error) {
       console.error('Error in league reset:', error);
@@ -174,35 +212,81 @@ class LeagueResetService {
 
   /**
    * Promote user to next tier
-   * TODO: Implement when tier number mapping is established
    */
   private async promoteUser(userId: string, newTierNumber: number): Promise<void> {
+    const tierName = this.getTierNameFromNumber(newTierNumber);
+    
     await supabase
       .from('profiles')
       .update({ current_league_tier: newTierNumber })
       .eq('id', userId);
 
-    console.log(`User ${userId} promoted to tier ${newTierNumber}`);
+    // Award promotion bonus XP
+    const bonusXP = 500 * (newTierNumber + 1);
+    await supabase.rpc('add_xp', { user_id: userId, xp_amount: bonusXP });
+
+    console.log(`User ${userId} promoted to ${tierName} (tier ${newTierNumber}) +${bonusXP} XP`);
   }
 
   /**
    * Relegate user to previous tier
-   * TODO: Implement when tier number mapping is established
    */
   private async relegateUser(userId: string, newTierNumber: number): Promise<void> {
+    const tierName = this.getTierNameFromNumber(newTierNumber);
+    
     await supabase
       .from('profiles')
       .update({ current_league_tier: newTierNumber })
       .eq('id', userId);
 
-    console.log(`User ${userId} relegated to tier ${newTierNumber}`);
+    console.log(`User ${userId} relegated to ${tierName} (tier ${newTierNumber})`);
+  }
+
+  /**
+   * Get tier name from tier number
+   */
+  private getTierNameFromNumber(tierNumber: number): string {
+    const tierNames = ['bronze', 'silver', 'gold', 'platinum', 'diamond', 'master'];
+    return tierNames[Math.min(tierNumber, tierNames.length - 1)] || 'bronze';
+  }
+
+  /**
+   * Distribute season rewards to top performers
+   */
+  private async distributeSeasonRewards(users: any[]): Promise<void> {
+    // Sort by total XP to find season champions
+    const sorted = [...users].sort((a, b) => (b.total_xp || 0) - (a.total_xp || 0));
+    
+    // Award top 10 performers
+    const rewards = [
+      { rank: 1, xp: 5000, title: 'Season Champion' },
+      { rank: 2, xp: 3000, title: 'Runner Up' },
+      { rank: 3, xp: 2000, title: 'Third Place' },
+      { rank: 4, xp: 1000, title: 'Top 10' },
+      { rank: 5, xp: 1000, title: 'Top 10' },
+      { rank: 6, xp: 750, title: 'Top 10' },
+      { rank: 7, xp: 750, title: 'Top 10' },
+      { rank: 8, xp: 500, title: 'Top 10' },
+      { rank: 9, xp: 500, title: 'Top 10' },
+      { rank: 10, xp: 500, title: 'Top 10' },
+    ];
+
+    const rewardPromises = rewards.map(async (reward, index) => {
+      if (index < sorted.length) {
+        const user = sorted[index];
+        await supabase.rpc('add_xp', { user_id: user.id, xp_amount: reward.xp });
+        console.log(`Awarded ${reward.title} to user ${user.id}: +${reward.xp} XP`);
+      }
+    });
+
+    await Promise.all(rewardPromises);
   }
 
   /**
    * Archive weekly data for analytics
    */
   private async archiveWeeklyData(users: any[]): Promise<void> {
-    // Not currently used since weekly reset is simplified
+    // Future: Store weekly stats for historical analysis
     console.log(`Would archive data for ${users.length} users`);
   }
 

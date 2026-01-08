@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Target, BarChart3, Settings } from 'lucide-react';
+import { Home, Target, BarChart3, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type TabId = 'home' | 'goals' | 'raids' | 'contracts' | 'stats' | 'settings';
@@ -10,11 +10,11 @@ interface BottomNavigationProps {
 }
 
 export const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab, onTabChange }) => {
-  const navItems: { icon: React.ReactNode; label: string; id: TabId; badge?: boolean }[] = [
+  const navItems: { icon: React.ReactNode; label: string; id: TabId; badge?: boolean; tourId?: string }[] = [
     { icon: <Home className="w-5 h-5" />, label: 'Home', id: 'home' },
-    { icon: <Target className="w-5 h-5" />, label: 'Goals', id: 'goals' },
+    { icon: <Target className="w-5 h-5" />, label: 'Goals', id: 'goals', tourId: 'ai-planner' },
     { icon: <BarChart3 className="w-5 h-5" />, label: 'Progress', id: 'stats' },
-    { icon: <Settings className="w-5 h-5" />, label: 'Settings', id: 'settings' },
+    { icon: <Flame className="w-5 h-5" />, label: 'Raids', id: 'raids', tourId: 'focus' },
   ];
 
   return (
@@ -25,6 +25,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab, o
             <button
               key={item.id}
               onClick={() => onTabChange(item.id)}
+              data-tour={item.tourId}
               className={cn(
                 "flex flex-col items-center gap-1.5 px-5 py-2 rounded-2xl transition-all duration-300 relative min-w-[72px]",
                 activeTab === item.id

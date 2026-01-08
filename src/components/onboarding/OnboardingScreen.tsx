@@ -5,7 +5,10 @@ import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { createGeminiScheduler } from '@/utils/geminiScheduler';
+import { useTasks } from '@/hooks/useTasks';
 
 interface OnboardingScreenProps {
   onComplete: () => void;
@@ -25,6 +28,8 @@ interface OnboardingData {
 
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const { createBulkTasks } = useTasks();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [data, setData] = useState<OnboardingData>({
@@ -91,7 +96,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
       // 2. Create year goal with time allocation
       const targetDate = format(new Date(2026, 11, 31), 'yyyy-MM-dd'); // Dec 31, 2026
-      const { error: goalError } = await supabase
+      const { data: goalData, error: goalError } = await supabase
         .from('goals')
         .insert({
           user_id: user.id,
@@ -101,13 +106,77 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           target_date: targetDate,
           is_active: true,
           progress: 0
-        });
+        })
+        .select()
+        .single();
 
-      if (goalError) throw goalError;
+      if (goalError) {
+        console.error('Goal creation error:', goalError);
+        throw goalError;
+      }
+
+      console.log('Goal created successfully:', goalData);
+
+      // 3. Generate initial AI schedule for the goal
+      try {
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const useRealAI = apiKey && apiKey !== 'YOUR_API_KEY_HERE';
+
+        if (useRealAI) {
+          const scheduler = createGeminiScheduler(apiKey);
+          const prompt = `Create a first-day starter plan for: ${data.yearGoal}. Generate 2-3 specific, actionable tasks to get started today. Each task should be 45-90 minutes.`;
+          
+          const aiTasks = await scheduler.generateSchedule({
+            userInput: prompt,
+            energyProfile: data.energyProfile,
+            existingTasks: [],
+            goals: [{ title: data.yearGoal }],
+            currentTime: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          });
+
+          // Create tasks in database
+          const tasksToCreate = aiTasks.slice(0, 3).map((task, index) => {
+            const startTime = task.suggestedTime.split(' - ')[0];
+            const [hours, minutes] = startTime.split(':').map(Number);
+            const scheduleDate = new Date();
+            scheduleDate.setHours(hours, minutes, 0, 0);
+
+            return {
+              title: task.title,
+              description: task.description || '',
+              duration_minutes: task.duration,
+              priority: task.priority,
+              scheduled_date: format(new Date(), 'yyyy-MM-dd'),
+              scheduled_time: startTime,
+              task_type: task.taskType || 'deepwork',
+              linked_goal_id: goalData.id,
+              status: 'pending' as const
+            };
+          });
+
+          if (tasksToCreate.length > 0) {
+            await createBulkTasks(tasksToCreate);
+            console.log('Initial tasks created:', tasksToCreate.length);
+          }
+        }
+      } catch (aiError) {
+        console.error('Error generating AI schedule:', aiError);
+        // Don't fail onboarding if AI scheduling fails
+      }
+
+      toast({
+        title: 'Welcome aboard! 🎉',
+        description: 'Your profile, goal, and starter tasks are ready!'
+      });
 
       onComplete();
     } catch (error) {
       console.error('Error saving onboarding data:', error);
+      toast({
+        title: 'Setup incomplete',
+        description: 'Some data could not be saved. Please check your goal in the Goals tab.',
+        variant: 'destructive'
+      });
       // Still complete onboarding even if save fails
       onComplete();
     } finally {
@@ -144,10 +213,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
             </div>
             <div>
               <h1 className="text-3xl font-bold text-foreground mb-2">
-                Welcome to <span className="text-primary">FocusForge</span>
+                Welcome to <span className="text-primary">Xecute</span>
               </h1>
               <p className="text-muted-foreground">
-                Your hardcore productivity companion. Let's forge your path to success.
+                Your hardcore productivity companion. Execute your goals with precision.
               </p>
             </div>
             <div className="grid grid-cols-3 gap-4 pt-6">
@@ -462,7 +531,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           ) : step === totalSteps - 1 ? (
             <>
               <Flame className="w-5 h-5 mr-2" />
-              Start Forging
+              Start Xecuting
             </>
           ) : (
             <>

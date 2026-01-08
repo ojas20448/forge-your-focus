@@ -19,7 +19,7 @@ interface SyncQueueItem {
 class OfflineStorageManager {
   private db: SQLiteDBConnection | null = null;
   private sqlite: SQLiteConnection | null = null;
-  private dbName = 'focusforge.db';
+  private dbName = 'xecute.db';
   private isInitialized = false;
 
   /**

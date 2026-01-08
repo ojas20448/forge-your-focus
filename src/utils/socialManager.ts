@@ -200,7 +200,27 @@ class SocialManager {
     // Trigger haptic feedback
     await hapticFeedback.trigger('success');
 
-    // TODO: Send push notification to challenged user
+    // Send push notification to challenged user
+    const { data: challengerProfile } = await supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('user_id', challengerId)
+      .single();
+
+    const challengerName = challengerProfile?.display_name || 'Someone';
+    const challengeTypes = {
+      'streak': 'Streak Battle',
+      'xp_race': 'XP Race',
+      'focus_hours': 'Focus Hours',
+      'tasks_completed': 'Task Marathon'
+    };
+
+    await this.sendNotification(
+      challengedId,
+      'challenge',
+      `${challengerName} challenged you to a ${challengeTypes[type]}!`,
+      `Complete ${targetValue} in ${durationDays} days`
+    );
 
     return data;
   }
@@ -289,7 +309,21 @@ class SocialManager {
         .eq('id', challengeId);
 
       await hapticFeedback.trigger('achievement');
-      // TODO: Send notification to other user
+      
+      // Notify the other user about the winner
+      const otherUserId = challenge.challenger_id === userId ? challenge.challenged_id : challenge.challenger_id;
+      const { data: winnerProfile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('user_id', userId)
+        .single();
+
+      await this.sendNotification(
+        otherUserId,
+        'challenge',
+        `${winnerProfile?.display_name || 'Someone'} won the challenge!`,
+        'Time to step up your game!'
+      );
     }
   }
 
@@ -407,14 +441,27 @@ class SocialManager {
    * Start raid (for creator or auto-start at scheduled time)
    */
   async startRaid(raidId: string): Promise<boolean> {
-    const { error } = await supabase
+    const { data: raid, error } = await supabase
       .from('raids')
       .update({ status: 'active' })
-      .eq('id', raidId);
+      .eq('id', raidId)
+      .select('title, participants')
+      .single();
 
-    if (!error) {
+    if (!error && raid) {
       await hapticFeedback.trigger('heavy');
-      // TODO: Send push notifications to all participants
+      
+      // Send push notifications to all participants
+      const notificationPromises = raid.participants.map(participantId =>
+        this.sendNotification(
+          participantId,
+          'raid_alert',
+          `⚔️ ${raid.title} has started!`,
+          'Join now and start earning XP!'
+        )
+      );
+
+      await Promise.all(notificationPromises);
     }
 
     return !error;
@@ -434,6 +481,209 @@ class SocialManager {
     }
 
     return !error;
+  }
+
+  /**
+   * Send friend request
+   */
+  async sendFriendRequest(fromUserId: string, toUserId: string): Promise<boolean> {
+    const { error } = await supabase
+      .from('friendships')
+      .insert({
+        user_id: fromUserId,
+        friend_id: toUserId,
+        status: 'pending',
+      });
+
+    if (!error) {
+      const { data: fromProfile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('user_id', fromUserId)
+        .single();
+
+      await this.sendNotification(
+        toUserId,
+        'challenge',
+        'New Friend Request',
+        `${fromProfile?.display_name || 'Someone'} wants to be your accountability partner!`
+      );
+    }
+
+    return !error;
+  }
+
+  /**
+   * Accept friend request
+   */
+  async acceptFriendRequest(userId: string, friendId: string): Promise<boolean> {
+    const { error } = await supabase
+      .from('friendships')
+      .update({ status: 'accepted' })
+      .match({ user_id: friendId, friend_id: userId });
+
+    if (!error) {
+      // Create reciprocal friendship
+      await supabase
+        .from('friendships')
+        .insert({
+          user_id: userId,
+          friend_id: friendId,
+          status: 'accepted',
+        });
+
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('user_id', userId)
+        .single();
+
+      await this.sendNotification(
+        friendId,
+        'achievement',
+        'Friend Request Accepted!',
+        `${userProfile?.display_name || 'Someone'} is now your accountability partner!`
+      );
+    }
+
+    return !error;
+  }
+
+  /**
+   * Generate friend code for user
+   */
+  async generateFriendCode(userId: string): Promise<string> {
+    // Generate 8-character alphanumeric code
+    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+    
+    await supabase
+      .from('profiles')
+      .update({ friend_code: code })
+      .eq('user_id', userId);
+
+    return code;
+  }
+
+  /**
+   * Find user by friend code
+   */
+  async findUserByFriendCode(code: string): Promise<{ user_id: string; display_name: string } | null> {
+    const { data } = await supabase
+      .from('profiles')
+      .select('user_id, display_name')
+      .eq('friend_code', code.toUpperCase())
+      .single();
+
+    return data;
+  }
+
+  /**
+   * Create 1-on-1 accountability partnership
+   */
+  async createPartnership(
+    userId1: string,
+    userId2: string,
+    goals: string[],
+    checkInFrequency: 'daily' | 'weekly'
+  ): Promise<string | null> {
+    const { data, error } = await supabase
+      .from('partnerships')
+      .insert({
+        user1_id: userId1,
+        user2_id: userId2,
+        goals,
+        check_in_frequency: checkInFrequency,
+        status: 'active',
+        created_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single();
+
+    if (!error) {
+      await this.sendNotification(
+        userId2,
+        'achievement',
+        'New Accountability Partnership!',
+        `You're now partners! Check in ${checkInFrequency} to track progress together.`
+      );
+    }
+
+    return data?.id || null;
+  }
+
+  /**
+   * Start synchronized study session
+   */
+  async startStudyTogether(
+    partnershipId: string,
+    durationMinutes: number
+  ): Promise<string | null> {
+    const { data: partnership } = await supabase
+      .from('partnerships')
+      .select('user1_id, user2_id')
+      .eq('id', partnershipId)
+      .single();
+
+    if (!partnership) return null;
+
+    // Create synchronized focus session
+    const endTime = new Date(Date.now() + durationMinutes * 60 * 1000);
+    
+    const { data, error } = await supabase
+      .from('study_sessions')
+      .insert({
+        partnership_id: partnershipId,
+        scheduled_duration: durationMinutes,
+        ends_at: endTime.toISOString(),
+        status: 'active',
+      })
+      .select('id')
+      .single();
+
+    if (!error) {
+      // Notify both partners
+      await Promise.all([
+        this.sendNotification(
+          partnership.user1_id,
+          'raid_alert',
+          'Study Together Started!',
+          `${durationMinutes}-minute synchronized session is live!`
+        ),
+        this.sendNotification(
+          partnership.user2_id,
+          'raid_alert',
+          'Study Together Started!',
+          `${durationMinutes}-minute synchronized session is live!`
+        ),
+      ]);
+    }
+
+    return data?.id || null;
+  }
+
+  /**
+   * Send notification to user (helper method)
+   */
+  private async sendNotification(
+    userId: string,
+    type: 'challenge' | 'achievement' | 'raid_alert',
+    title: string,
+    body: string
+  ): Promise<void> {
+    // Store notification in database
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        type,
+        title,
+        body,
+        read: false,
+        created_at: new Date().toISOString(),
+      });
+
+    // Future: Integrate with push notification service (FCM, APNs)
+    console.log(`Notification sent to ${userId}: ${title}`);
   }
 }
 

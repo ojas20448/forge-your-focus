@@ -59,7 +59,7 @@ export const CameraPermissionModal: React.FC<{ onClose: () => void }> = ({ onClo
                 Enable Camera Access
               </h2>
               <p className="text-sm text-muted-foreground mb-6">
-                FocusForge uses your camera to detect when you're focused using machine learning. 
+                Xecute uses your camera to detect when you're focused using machine learning. 
                 This helps track genuine focus sessions.
               </p>
 

@@ -150,9 +150,8 @@ export const SettingsScreen: React.FC = () => {
 
       {/* Profile section */}
       <section className="px-4 py-4">
-        <button 
-          onClick={() => setShowEditProfile(true)}
-          className="w-full bg-card rounded-2xl border border-border/50 p-4 flex items-center gap-4 hover:bg-card/80 transition-colors"
+        <div 
+          className="w-full bg-card rounded-2xl border border-border/50 p-4 flex items-center gap-4"
         >
           {/* Avatar with upload */}
           <input
@@ -192,13 +191,10 @@ export const SettingsScreen: React.FC = () => {
               <span className="text-xs text-xp-glow font-mono-time">{profile?.total_xp?.toLocaleString() || 0} XP</span>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={(e) => {
-            e.stopPropagation();
-            setShowEditProfile(true);
-          }}>
+          <Button variant="outline" size="sm" onClick={() => setShowEditProfile(true)}>
             {avatarUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Edit'}
           </Button>
-        </button>
+        </div>
       </section>
 
       {/* Energy profile */}
@@ -400,7 +396,7 @@ export const SettingsScreen: React.FC = () => {
           <SettingItem
             icon={<Info className="w-5 h-5 text-muted-foreground" />}
             label="App Tour"
-            description="Learn how to use FocusForge"
+            description="Learn how to use Xecute"
             onClick={() => setShowAppTour(true)}
           />
           <SettingItem
@@ -428,7 +424,7 @@ export const SettingsScreen: React.FC = () => {
 
       {/* Version */}
       <div className="text-center py-4">
-        <p className="text-xs text-muted-foreground">FocusForge v1.0.0</p>
+        <p className="text-xs text-muted-foreground">Xecute v1.0.0</p>
       </div>
 
       {/* App Tour Modal */}
