@@ -3,6 +3,7 @@ import { Book, Brain, Dumbbell, Eye, Coffee, Check, AlertTriangle, Clock, Shield
 import { Task, TaskStatus, TaskType } from '@/types/focusforge';
 import { cn } from '@/lib/utils';
 import { DecayIndicator } from '@/components/decay/DecayIndicator';
+import { TaskDecayIndicator } from '@/components/tasks/TaskDecayIndicator';
 import { useCommitmentContracts } from '@/hooks/useCommitmentContracts';
 
 interface TaskBlockProps {
@@ -106,7 +107,7 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({ task, onTaskClick }) => {
           {/* Decay and Contract indicators */}
           <div className="flex items-center gap-2 mt-2">
             {hasDecay && (
-              <DecayIndicator decayLevel={task.decay_level} size="sm" />
+              <TaskDecayIndicator decayLevel={task.decay_level} showLabel />
             )}
             {contract && (
               <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">

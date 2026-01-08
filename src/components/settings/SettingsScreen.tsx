@@ -9,8 +9,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useAvatarUpload } from '@/hooks/useAvatarUpload';
 import { useCommitmentContracts } from '@/hooks/useCommitmentContracts';
+import { useCameraPermission } from '@/hooks/useCameraPermission';
 import { ContractsOverviewScreen } from '@/components/contracts/ContractsOverviewScreen';
 import { AppTourModal } from '@/components/onboarding/AppTourModal';
+import { CameraPermissionModal } from '@/components/CameraPermissionModal';
 import { EditProfileModal } from './EditProfileModal';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -66,6 +68,7 @@ export const SettingsScreen: React.FC = () => {
   const { profile, refetch: refetchProfile } = useProfile();
   const { uploadAvatar, uploading: avatarUploading } = useAvatarUpload();
   const { getActiveContracts } = useCommitmentContracts();
+  const { granted: cameraGranted, requestPermission: requestCamera } = useCameraPermission();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [notifications, setNotifications] = useState(false);
   const [strictMode, setStrictMode] = useState(true);
@@ -73,6 +76,7 @@ export const SettingsScreen: React.FC = () => {
   const [showContractsScreen, setShowContractsScreen] = useState(false);
   const [showAppTour, setShowAppTour] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showCameraPermission, setShowCameraPermission] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       return document.documentElement.classList.contains('dark');
@@ -302,6 +306,12 @@ export const SettingsScreen: React.FC = () => {
             onToggle={handleNotificationToggle}
           />
           <SettingItem
+            icon={<Camera className={cn("w-5 h-5", cameraGranted ? "text-success" : "text-muted-foreground")} />}
+            label="Camera Access"
+            description={cameraGranted ? "ML detection enabled" : "Required for focus verification"}
+            onClick={() => setShowCameraPermission(true)}
+          />
+          <SettingItem
             icon={<Shield className="w-5 h-5 text-accent" />}
             label="Strict Mode"
             description="Aggressive violation penalties"
@@ -432,6 +442,11 @@ export const SettingsScreen: React.FC = () => {
         isOpen={showEditProfile}
         onClose={() => setShowEditProfile(false)}
       />
+
+      {/* Camera Permission Modal */}
+      {showCameraPermission && (
+        <CameraPermissionModal onClose={() => setShowCameraPermission(false)} />
+      )}
     </div>
   );
 };

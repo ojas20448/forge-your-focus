@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Clock, Target, Zap, TrendingUp, Calendar, Flame, Brain, BarChart3, AlertTriangle } from 'lucide-react';
+import { Clock, Target, Zap, TrendingUp, Calendar, Flame, Brain, BarChart3, AlertTriangle, Trophy, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AchievementsScreen } from '@/components/achievements/AchievementsScreen';
+import { RaidsScreen } from '@/components/raids/RaidsScreen';
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -34,6 +36,7 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, value, change, suffix 
 
 export const StatsScreen: React.FC = () => {
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('week');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'achievements' | 'raids'>('overview');
 
   const weeklyData = [
     { day: 'M', hours: 4.5, target: 7 },
@@ -47,12 +50,61 @@ export const StatsScreen: React.FC = () => {
 
   const maxHours = Math.max(...weeklyData.map(d => Math.max(d.hours, d.target)));
 
+  // Show sub-screens based on active tab
+  if (activeSubTab === 'achievements') {
+    return <AchievementsScreen />;
+  }
+
+  if (activeSubTab === 'raids') {
+    return <RaidsScreen />;
+  }
+
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <header className="sticky top-0 bg-background/95 backdrop-blur-xl border-b border-border z-20">
         <div className="px-4 py-4">
-          <h1 className="text-xl font-bold text-foreground">Statistics</h1>
+          <h1 className="text-xl font-bold text-foreground">Progress</h1>
+        </div>
+        
+        {/* Sub-navigation tabs */}
+        <div className="flex px-4 pb-2 gap-2">
+          <button
+            onClick={() => setActiveSubTab('overview')}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+              activeSubTab === 'overview' 
+                ? "bg-primary text-primary-foreground" 
+                : "bg-secondary/50 text-muted-foreground"
+            )}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Stats</span>
+          </button>
+          <button
+            onClick={() => setActiveSubTab('achievements')}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+              activeSubTab === 'achievements' 
+                ? "bg-primary text-primary-foreground" 
+                : "bg-secondary/50 text-muted-foreground"
+            )}
+          >
+            <Trophy className="w-4 h-4" />
+            <span>Awards</span>
+          </button>
+          <button
+            onClick={() => setActiveSubTab('raids')}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+              activeSubTab === 'raids' 
+                ? "bg-primary text-primary-foreground" 
+                : "bg-secondary/50 text-muted-foreground"
+            )}
+          >
+            <Flame className="w-4 h-4" />
+            <span>Raids</span>
+          </button>
         </div>
         
         {/* Time range tabs */}
@@ -62,10 +114,10 @@ export const StatsScreen: React.FC = () => {
               key={range}
               onClick={() => setTimeRange(range)}
               className={cn(
-                "flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all capitalize",
+                "flex-1 py-1.5 px-3 rounded-lg text-xs font-medium transition-all capitalize",
                 timeRange === range 
-                  ? "bg-primary text-primary-foreground" 
-                  : "bg-secondary text-muted-foreground"
+                  ? "bg-primary/20 text-primary border border-primary/30" 
+                  : "bg-secondary/30 text-muted-foreground"
               )}
             >
               {range}

@@ -3,7 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { ErrorBoundary, OfflineIndicator } from "@/components/ui/error-boundary";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useOnlineStatus } from "@/hooks/useOptimisticMutation";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -26,7 +27,7 @@ const AppContent = () => {
       {!isOnline && <OfflineIndicator />}
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
