@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 import { format } from 'date-fns';
+import { offlineQuery } from '@/utils/offlineWrapper';
 
 export interface DbTask {
   id: string;
@@ -52,12 +53,38 @@ export const useTasks = (selectedDate?: Date) => {
     }
 
     setError(null);
-    try {
-      let query = supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('start_time', { ascending: true });
+    
+    // Use offline-first query
+    const result = await offlineQuery({
+      queryFn: async () => {
+        let query = supabase
+          .from('tasks')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('start_time', { ascending: true });
+
+        if (selectedDate) {
+          const dateStr = format(selectedDate, 'yyyy-MM-dd');
+          query = query.gte('scheduled_date', dateStr).lte('scheduled_date', dateStr);
+        }
+
+        const { data, error: fetchError } = await query;
+        if (fetchError) throw fetchError;
+        return data || [];
+      },
+      cacheKey: `tasks_${user.id}_${selectedDate ? format(selectedDate, 'yyyy-MM-dd') : 'all'}`,
+      fallbackData: [],
+      silentFail: true,
+    });
+
+    if (result.error && !result.fromCache) {
+      setError(result.error.message);
+      console.error('Error fetching tasks:', result.error);
+    }
+
+    setTasks(result.data || []);
+    setLoading(false);
+  }, [user, selectedDate]);
 
       if (selectedDate) {
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -84,7 +111,38 @@ export const useTasks = (selectedDate?: Date) => {
 
   useEffect(() => {
     fetchTasks();
-  }, [fetchTasks]);
+
+    // Set up realtime subscription for tasks
+    if (!user) return;
+
+    const tasksChannel = supabase
+      .channel('tasks-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setTasks(prev => [...prev, payload.new as DbTask].sort((a, b) => a.start_time.localeCompare(b.start_time)));
+          } else if (payload.eventType === 'UPDATE') {
+            setTasks(prev => prev.map(t => 
+              t.id === payload.new.id ? payload.new as DbTask : t
+            ));
+          } else if (payload.eventType === 'DELETE') {
+            setTasks(prev => prev.filter(t => t.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(tasksChannel);
+    };
+  }, [fetchTasks, user]);
 
   const createTask = async (input: CreateTaskInput) => {
     if (!user) return null;

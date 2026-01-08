@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { offlineQuery } from '@/utils/offlineWrapper';
 
 export interface Achievement {
   id: string;
@@ -44,20 +45,38 @@ export function useAchievements() {
 
     setLoading(true);
     
-    // Fetch all achievements
-    const { data: allAchievements } = await supabase
-      .from('achievements')
-      .select('*')
-      .order('requirement_value', { ascending: true });
+    // Fetch all achievements with offline support
+    const achievementsResult = await offlineQuery({
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from('achievements')
+          .select('*')
+          .order('requirement_value', { ascending: true });
+        if (error) throw error;
+        return data || [];
+      },
+      cacheKey: 'achievements_all',
+      fallbackData: [],
+      silentFail: true,
+    });
 
-    // Fetch user's unlocked achievements
-    const { data: unlocked } = await supabase
-      .from('user_achievements')
-      .select('*, achievement:achievements(*)')
-      .eq('user_id', user.id);
+    // Fetch user's unlocked achievements with offline support
+    const unlockedResult = await offlineQuery({
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from('user_achievements')
+          .select('*, achievement:achievements(*)')
+          .eq('user_id', user.id);
+        if (error) throw error;
+        return data || [];
+      },
+      cacheKey: `user_achievements_${user.id}`,
+      fallbackData: [],
+      silentFail: true,
+    });
 
-    setAchievements(allAchievements || []);
-    setUserAchievements(unlocked?.map(ua => ({
+    setAchievements(achievementsResult.data || []);
+    setUserAchievements(unlockedResult.data?.map(ua => ({
       id: ua.id,
       achievement_id: ua.achievement_id,
       unlocked_at: ua.unlocked_at,
@@ -70,22 +89,53 @@ export function useAchievements() {
   const calculateProgress = useCallback(async () => {
     if (!user || achievements.length === 0) return;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('total_xp, current_streak')
-      .eq('user_id', user.id)
-      .single();
+    const profileResult = await offlineQuery({
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('total_xp, current_streak')
+          .eq('user_id', user.id)
+          .single();
+        if (error) throw error;
+        return data;
+      },
+      cacheKey: `profile_stats_${user.id}`,
+      fallbackData: null,
+      silentFail: true,
+    });
 
-    const { data: sessionStats } = await supabase
-      .from('focus_sessions')
-      .select('id')
-      .eq('user_id', user.id);
+    const sessionStatsResult = await offlineQuery({
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from('focus_sessions')
+          .select('id')
+          .eq('user_id', user.id);
+        if (error) throw error;
+        return data || [];
+      },
+      cacheKey: `focus_sessions_stats_${user.id}`,
+      fallbackData: [],
+      silentFail: true,
+    });
 
-    const { data: taskStats } = await supabase
-      .from('tasks')
-      .select('id, is_completed')
-      .eq('user_id', user.id)
-      .eq('is_completed', true);
+    const taskStatsResult = await offlineQuery({
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from('tasks')
+          .select('id, is_completed')
+          .eq('user_id', user.id)
+          .eq('is_completed', true);
+        if (error) throw error;
+        return data || [];
+      },
+      cacheKey: `tasks_completed_stats_${user.id}`,
+      fallbackData: [],
+      silentFail: true,
+    });
+
+    const profile = profileResult.data;
+    const sessionStats = sessionStatsResult.data;
+    const taskStats = taskStatsResult.data;
 
     if (!profile) return;
 

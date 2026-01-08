@@ -3,6 +3,7 @@ import { Clock, Target, Zap, TrendingUp, Calendar, Flame, Brain, BarChart3, Aler
 import { cn } from '@/lib/utils';
 import { AchievementsScreen } from '@/components/achievements/AchievementsScreen';
 import { RaidsScreen } from '@/components/raids/RaidsScreen';
+import { AdvancedAnalyticsDashboard } from '@/components/analytics/AdvancedAnalyticsDashboard';
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -36,7 +37,7 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, value, change, suffix 
 
 export const StatsScreen: React.FC = () => {
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('week');
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'achievements' | 'raids'>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'achievements' | 'raids' | 'analytics'>('overview');
 
   const weeklyData = [
     { day: 'M', hours: 4.5, target: 7 },
@@ -57,6 +58,10 @@ export const StatsScreen: React.FC = () => {
 
   if (activeSubTab === 'raids') {
     return <RaidsScreen />;
+  }
+
+  if (activeSubTab === 'analytics') {
+    return <AdvancedAnalyticsDashboard />;
   }
 
   return (
@@ -104,6 +109,18 @@ export const StatsScreen: React.FC = () => {
           >
             <Flame className="w-4 h-4" />
             <span>Raids</span>
+          </button>
+          <button
+            onClick={() => setActiveSubTab('analytics')}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+              activeSubTab === 'analytics' 
+                ? "bg-primary text-primary-foreground" 
+                : "bg-secondary/50 text-muted-foreground"
+            )}
+          >
+            <Brain className="w-4 h-4" />
+            <span>Analytics</span>
           </button>
         </div>
         

@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
-import { X, Mic, Send, Sparkles, Loader2, Clock, Target, Zap, Check, Sun, Moon, Coffee, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Mic, Send, Sparkles, Loader2, Clock, Target, Zap, Check, Sun, Moon, Coffee, AlertCircle, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { EnergyProfile, Task } from '@/types/focusforge';
 import { createGeminiScheduler, GeneratedTask as GeminiTask } from '@/utils/geminiScheduler';
+import { useVoiceRecognition } from '@/utils/voiceRecognition';
+import { parseDeadline, findBestDeadline } from '@/utils/deadlineParser';
+import { parseRecurringTask, generateRecurringDates } from '@/utils/recurringTasks';
 
 const energySchedulingProfiles = {
   morning_lark: { peak: { start: 6, end: 12 }, low: { start: 18, end: 23 } },
@@ -11,7 +14,7 @@ const energySchedulingProfiles = {
   balanced: { peak: { start: 9, end: 17 }, low: { start: 0, end: 6 } },
 };
 import { useTasks, CreateTaskInput } from '@/hooks/useTasks';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 
 interface GeneratedTask {
   title: string;
@@ -48,6 +51,21 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [useAI, setUseAI] = useState(true);
   const { createBulkTasks } = useTasks();
+  const { isListening: voiceIsListening, transcript, error: voiceError, isSupported, startListening, stopListening, clearTranscript } = useVoiceRecognition();
+
+  // Update input when voice transcript changes
+  useEffect(() => {
+    if (transcript) {
+      setInput(transcript);
+    }
+  }, [transcript]);
+
+  // Show voice error if any
+  useEffect(() => {
+    if (voiceError) {
+      setError(voiceError);
+    }
+  }, [voiceError]);
 
   const examplePrompts = [
     "Study Physics for 2 hours",
@@ -137,12 +155,15 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
           suggestedTime: `${formatTimeFromMinutes(peakStartMinutes + 120)} - ${formatTimeFromMinutes(peakStartMinutes + 180)}`,
           linkedGoal: "Crack JEE 2026"
         },
-        {
-          title: "Chemistry Revision",
-          duration: 45,
-          priority: 'medium',
-          suggestedTime: `${formatTimeFromMinutes(peakEndMinutes - 60)} - ${formatTimeFromMinutes(peakEndMinutes - 15)}`
-        }
+    if (voiceIsListening) {
+      stopListening();
+      setIsListening(false);
+    } else {
+      clearTranscript();
+      setError(null);
+      startListening();
+      setIsListening(true);
+    }
       ];
       
       setGeneratedTasks(mockTasks);
@@ -166,22 +187,62 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
     );
   };
 
-  const handleAddToSchedule = async () => {
-    const tasksToAdd = generatedTasks.filter((_, i) => selectedTasks.includes(i));
+  const heck if this is a recurring task
+    const recurringInfo = parseRecurringTask(input);
+    const deadline = findBestDeadline(input, selectedDate);
     
     // Convert to database format and save
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    const taskInputs: CreateTaskInput[] = tasksToAdd.map(task => {
-      const [startTime, endTime] = task.suggestedTime.split(' - ').map(t => t.trim());
-      return {
-        title: task.title,
-        description: '',
-        priority: task.priority,
-        scheduled_date: dateStr,
-        start_time: startTime,
-        end_time: endTime,
-        duration_minutes: task.duration,
-        goal_id: goals.find(g => g.title === task.linkedGoal)?.id,
+    const taskInputs: CreateTaskInput[] = [];
+
+    // Generate recurring tasks if detected
+    if (recurringInfo.recurrence && recurringInfo.recurrence.confidence >= 0.7) {
+      const dates = generateRecurringDates(
+        selectedDate,
+        recurringInfo.recurrence.pattern,
+        {
+          interval: recurringInfo.recurrence.interval,
+          daysOfWeek: recurringInfo.recurrence.daysOfWeek,
+          occurrences: 12, // Generate 12 occurrences
+          endDate: deadline?.date || addDays(selectedDate, 90), // 3 months default
+        }
+      );
+
+      // Create recurring task instances
+      dates.forEach(date => {
+        tasksToAdd.forEach(task => {
+          const [startTime, endTime] = task.suggestedTime.split(' - ').map(t => t.trim());
+          taskInputs.push({
+            title: task.title,
+            description: `Recurring: ${recurringInfo.recurrence!.parsedFrom}`,
+            priority: task.priority,
+            scheduled_date: format(date, 'yyyy-MM-dd'),
+            start_time: startTime,
+            end_time: endTime,
+            duration_minutes: recurringInfo.duration || task.duration,
+            goal_id: goals.find(g => g.title === task.linkedGoal)?.id,
+            xp_reward: (recurringInfo.duration || task.duration) >= 60 ? 20 : 10,
+          });
+        });
+      });
+    } else {
+      // Regular one-time tasks
+      tasksToAdd.forEach(task => {
+        const [startTime, endTime] = task.suggestedTime.split(' - ').map(t => t.trim());
+        const taskDate = deadline?.date || selectedDate;
+        taskInputs.push({
+          title: task.title,
+          description: deadline ? `Deadline: ${deadline.parsedFrom}` : '',
+          priority: task.priority,
+          scheduled_date: format(taskDate, 'yyyy-MM-dd'),
+          start_time: startTime,
+          end_time: endTime,
+          duration_minutes: task.duration,
+          goal_id: goals.find(g => g.title === task.linkedGoal)?.id,
+          xp_reward: task.duration >= 60 ? 20 : 10,
+        });
+      });
+    } goal_id: goals.find(g => g.title === task.linkedGoal)?.id,
         xp_reward: task.duration >= 60 ? 20 : 10,
       };
     });
@@ -374,12 +435,14 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
                 variant="outline"
                 size="icon"
                 onClick={handleVoiceInput}
+                disabled={!isSupported}
+                title={!isSupported ? "Voice recognition not supported in this browser" : voiceIsListening ? "Stop listening" : "Start voice input"}
                 className={cn(
                   "shrink-0 transition-all",
-                  isListening && "bg-danger/20 border-danger text-danger animate-pulse"
+                  voiceIsListening && "bg-danger/20 border-danger text-danger animate-pulse"
                 )}
               >
-                <Mic className="w-5 h-5" />
+                {voiceIsListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               </Button>
               
               <div className="flex-1 relative">

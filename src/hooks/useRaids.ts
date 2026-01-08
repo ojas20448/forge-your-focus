@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { offlineQuery } from '@/utils/offlineWrapper';
 
 export interface DbRaid {
   id: string;
@@ -55,22 +56,31 @@ export const useRaids = () => {
     }
 
     setError(null);
-    try {
-      const { data, error: fetchError } = await supabase
-        .from('raids')
-        .select('*')
-        .eq('is_active', true)
-        .order('ends_at', { ascending: true });
+    
+    // Use offline-first query
+    const result = await offlineQuery({
+      queryFn: async () => {
+        const { data, error: fetchError } = await supabase
+          .from('raids')
+          .select('*')
+          .eq('is_active', true)
+          .order('ends_at', { ascending: true });
 
-      if (fetchError) throw fetchError;
-      setRaids(data || []);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch raids';
-      console.error('Error fetching raids:', err);
-      setError(message);
-    } finally {
-      setLoading(false);
+        if (fetchError) throw fetchError;
+        return data || [];
+      },
+      cacheKey: `raids_${user.id}`,
+      fallbackData: [],
+      silentFail: true,
+    });
+
+    if (result.error && !result.fromCache) {
+      setError(result.error.message);
+      console.error('Error fetching raids:', result.error);
     }
+
+    setRaids(result.data || []);
+    setLoading(false);
   }, [user]);
 
   useEffect(() => {

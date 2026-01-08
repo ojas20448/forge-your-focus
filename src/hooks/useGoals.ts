@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { offlineQuery } from '@/utils/offlineWrapper';
 
 export interface DbGoal {
   id: string;
@@ -44,32 +45,72 @@ export const useGoals = () => {
     }
 
     setError(null);
-    try {
-      const { data, error: fetchError } = await supabase
-        .from('goals')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+    
+    // Use offline-first query
+    const result = await offlineQuery({
+      queryFn: async () => {
+        const { data, error: fetchError } = await supabase
+          .from('goals')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
 
-      if (fetchError) throw fetchError;
-      setGoals(data || []);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch goals';
-      console.error('Error fetching goals:', err);
-      setError(message);
+        if (fetchError) throw fetchError;
+        return data || [];
+      },
+      cacheKey: `goals_${user.id}`,
+      fallbackData: [],
+      silentFail: true,
+    });
+
+    if (result.error && !result.fromCache) {
+      setError(result.error.message);
+      console.error('Error fetching goals:', result.error);
       toast({
         title: 'Unable to load goals',
         description: 'Please check your connection and try again.',
         variant: 'destructive'
       });
-    } finally {
-      setLoading(false);
     }
+
+    setGoals(result.data || []);
+    setLoading(false);
   }, [user, toast]);
 
   useEffect(() => {
     fetchGoals();
-  }, [fetchGoals]);
+
+    // Set up realtime subscription for goals
+    if (!user) return;
+
+    const goalsChannel = supabase
+      .channel('goals-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'goals',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setGoals(prev => [payload.new as DbGoal, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setGoals(prev => prev.map(g => 
+              g.id === payload.new.id ? payload.new as DbGoal : g
+            ));
+          } else if (payload.eventType === 'DELETE') {
+            setGoals(prev => prev.filter(g => g.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(goalsChannel);
+    };
+  }, [fetchGoals, user]);
 
   const createGoal = async (input: CreateGoalInput) => {
     if (!user) return null;
