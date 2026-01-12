@@ -32,7 +32,7 @@ class GeminiScheduler {
 
   constructor(config: GeminiConfig) {
     this.apiKey = config.apiKey;
-    this.model = config.model || 'gemini-1.5-flash'; // Free tier model
+    this.model = config.model || 'gemini-flash-latest'; // Latest available model with quota
   }
 
   /**
@@ -69,7 +69,7 @@ class GeminiScheduler {
 
       const data = await response.json();
       const textResponse = data.candidates[0].content.parts[0].text;
-      
+
       // Parse JSON response
       const jsonMatch = textResponse.match(/\[[\s\S]*\]/);
       if (!jsonMatch) {
@@ -89,7 +89,7 @@ class GeminiScheduler {
    */
   private buildPrompt(request: SchedulingRequest): string {
     const peakHours = this.getPeakHours(request.energyProfile);
-    
+
     return `You are an AI productivity coach for Xecute. Parse the user's request and create an optimized task schedule.
 
 USER INPUT: "${request.userInput}"
@@ -163,7 +163,7 @@ Return JSON: {"title": "...", "duration": minutes, "priority": "high/medium/low"
       const data = await response.json();
       const textResponse = data.candidates[0].content.parts[0].text;
       const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
-      
+
       if (!jsonMatch) {
         throw new Error('Failed to parse task');
       }
@@ -225,23 +225,37 @@ Return ONLY the JSON array, no markdown.`;
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
         }),
       }
     );
 
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Gemini API error:', response.status, errorData);
+      throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
+    }
+
     const data = await response.json();
+
+    // Validate response structure
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      console.error('Invalid API response structure:', data);
+      throw new Error('Invalid response from Gemini API');
+    }
+
     const textResponse = data.candidates[0].content.parts[0].text;
     const jsonMatch = textResponse.match(/\[[\s\S]*\]/);
-    
+
     if (!jsonMatch) {
-      throw new Error('Failed to parse milestone plan');
+      console.error('Failed to parse JSON from response:', textResponse);
+      throw new Error('Failed to parse milestone plan from AI response');
     }
 
     return JSON.parse(jsonMatch[0]);
@@ -352,7 +366,7 @@ Return ONLY JSON array.`;
     const data = await response.json();
     const textResponse = data.candidates[0].content.parts[0].text;
     const jsonMatch = textResponse.match(/\[[\s\S]*\]/);
-    
+
     if (!jsonMatch) {
       return [];
     }

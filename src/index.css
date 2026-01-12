@@ -6,81 +6,90 @@
 
 @layer base {
   :root {
-    /* Xecute Dark Industrial Theme */
-    --background: 220 20% 6%;
-    --foreground: 210 20% 94%;
+    /* Vibrant ToDoDo-Inspired Theme */
+    --background: 0 0% 98%;
+    --foreground: 220 15% 15%;
 
-    --card: 220 18% 10%;
-    --card-foreground: 210 20% 94%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 15%;
 
-    --popover: 220 18% 8%;
-    --popover-foreground: 210 20% 94%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 15%;
 
-    /* Electric Blue Primary */
-    --primary: 210 100% 55%;
-    --primary-foreground: 220 20% 6%;
+    /* Vibrant Blue Primary */
+    --primary: 220 85% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Muted charcoal */
-    --secondary: 220 15% 16%;
-    --secondary-foreground: 210 20% 85%;
+    /* Bright Yellow Secondary */
+    --secondary: 48 100% 67%;
+    --secondary-foreground: 220 15% 15%;
 
-    --muted: 220 15% 14%;
-    --muted-foreground: 215 15% 55%;
+    --muted: 45 15% 92%;
+    --muted-foreground: 220 10% 45%;
 
-    /* Accent - crimson for aggressive states */
-    --accent: 0 85% 55%;
+    /* Vibrant Orange Accent */
+    --accent: 15 100% 60%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 75% 50%;
+    --destructive: 0 85% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Success - muted green */
-    --success: 145 60% 42%;
+    /* Fresh Green Success */
+    --success: 165 75% 45%;
     --success-foreground: 0 0% 100%;
 
-    /* Warning - amber */
-    --warning: 38 95% 55%;
-    --warning-foreground: 0 0% 0%;
+    /* Bright Orange Warning */
+    --warning: 30 100% 55%;
+    --warning-foreground: 0 0% 100%;
 
-    /* Rotten - olive/brown decay */
-    --rotten: 45 35% 25%;
-    --rotten-foreground: 45 20% 70%;
+    /* Soft Gray Rotten */
+    --rotten: 0 0% 75%;
+    --rotten-foreground: 220 15% 25%;
 
-    /* Manifestation - deep purple glow */
-    --manifestation: 270 65% 55%;
+    /* Vibrant Purple Manifestation */
+    --manifestation: 260 75% 60%;
     --manifestation-foreground: 0 0% 100%;
 
-    --border: 220 15% 18%;
-    --input: 220 15% 14%;
-    --ring: 210 100% 55%;
+    --border: 220 15% 88%;
+    --input: 0 0% 98%;
+    --ring: 220 85% 55%;
 
-    --radius: 0.75rem;
+    --radius: 1.25rem;
 
-    /* Timeline colors */
-    --timeline-spine: 210 100% 55%;
-    --timeline-glow: 210 100% 55%;
-    --time-indicator: 0 85% 55%;
+    /* Timeline colors - Vibrant */
+    --timeline-spine: 220 85% 55%;
+    --timeline-glow: 220 85% 55%;
+    --time-indicator: 15 100% 60%;
 
-    /* XP and gamification */
-    --xp-glow: 50 100% 50%;
-    --streak-glow: 25 100% 55%;
+    /* XP and gamification - Bold */
+    --xp-glow: 48 100% 50%;
+    --streak-glow: 30 100% 55%;
     --league-gold: 45 100% 50%;
     --league-silver: 0 0% 75%;
-    --league-bronze: 30 60% 45%;
+    --league-bronze: 30 70% 50%;
 
-    /* Sidebar defaults */
-    --sidebar-background: 220 18% 8%;
-    --sidebar-foreground: 210 20% 90%;
-    --sidebar-primary: 210 100% 55%;
-    --sidebar-primary-foreground: 220 20% 6%;
-    --sidebar-accent: 220 15% 16%;
-    --sidebar-accent-foreground: 210 20% 90%;
-    --sidebar-border: 220 15% 18%;
-    --sidebar-ring: 210 100% 55%;
+    /* Sidebar defaults - Clean */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 15% 15%;
+    --sidebar-primary: 220 85% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 48 100% 67%;
+    --sidebar-accent-foreground: 220 15% 15%;
+    --sidebar-border: 220 15% 90%;
+    --sidebar-ring: 220 85% 55%;
   }
 
   .dark {
-    /* Same as root - always dark */
+    /* Dark mode with vibrant accents */
+    --background: 220 20% 10%;
+    --foreground: 0 0% 95%;
+
+    --card: 220 18% 14%;
+    --card-foreground: 0 0% 95%;
+
+    --primary: 220 85% 60%;
+    --secondary: 48 100% 60%;
+    --accent: 15 100% 65%;
   }
 }
 
@@ -118,15 +127,16 @@
 }
 
 @layer utilities {
+
   /* Glow effects */
   .glow-primary {
     box-shadow: 0 0 20px hsl(var(--primary) / 0.4),
-                0 0 40px hsl(var(--primary) / 0.2);
+      0 0 40px hsl(var(--primary) / 0.2);
   }
 
   .glow-accent {
     box-shadow: 0 0 20px hsl(var(--accent) / 0.5),
-                0 0 40px hsl(var(--accent) / 0.25);
+      0 0 40px hsl(var(--accent) / 0.25);
   }
 
   .glow-success {
@@ -161,12 +171,15 @@
   }
 
   @keyframes pulse-glow {
-    0%, 100% {
+
+    0%,
+    100% {
       box-shadow: 0 0 15px hsl(var(--primary) / 0.3);
     }
+
     50% {
       box-shadow: 0 0 30px hsl(var(--primary) / 0.6),
-                  0 0 50px hsl(var(--primary) / 0.3);
+        0 0 50px hsl(var(--primary) / 0.3);
     }
   }
 
@@ -176,9 +189,26 @@
   }
 
   @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-    20%, 40%, 60%, 80% { transform: translateX(4px); }
+
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+      transform: translateX(-4px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+      transform: translateX(4px);
+    }
   }
 
   /* Decay texture overlay */
@@ -190,41 +220,33 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(
-      135deg,
-      hsl(var(--rotten) / 0.3) 0%,
-      hsl(45 30% 20% / 0.4) 50%,
-      hsl(var(--rotten) / 0.2) 100%
-    );
+    background: linear-gradient(135deg,
+        hsl(var(--rotten) / 0.3) 0%,
+        hsl(45 30% 20% / 0.4) 50%,
+        hsl(var(--rotten) / 0.2) 100%);
     pointer-events: none;
     border-radius: inherit;
   }
 
   /* Time spine glow */
   .timeline-spine-glow {
-    background: linear-gradient(
-      180deg,
-      hsl(var(--timeline-spine) / 0.1) 0%,
-      hsl(var(--timeline-spine) / 0.4) 50%,
-      hsl(var(--timeline-spine) / 0.1) 100%
-    );
+    background: linear-gradient(180deg,
+        hsl(var(--timeline-spine) / 0.1) 0%,
+        hsl(var(--timeline-spine) / 0.4) 50%,
+        hsl(var(--timeline-spine) / 0.1) 100%);
   }
 
   /* Gradient backgrounds */
   .gradient-dark-fade {
-    background: linear-gradient(
-      180deg,
-      hsl(var(--background)) 0%,
-      hsl(220 18% 8%) 100%
-    );
+    background: linear-gradient(180deg,
+        hsl(var(--background)) 0%,
+        hsl(220 18% 8%) 100%);
   }
 
   .gradient-card {
-    background: linear-gradient(
-      145deg,
-      hsl(var(--card)) 0%,
-      hsl(220 15% 8%) 100%
-    );
+    background: linear-gradient(145deg,
+        hsl(var(--card)) 0%,
+        hsl(220 15% 8%) 100%);
   }
 
   /* Active task border animation */
@@ -233,9 +255,12 @@
   }
 
   @keyframes border-pulse {
-    0%, 100% {
+
+    0%,
+    100% {
       border-color: hsl(var(--primary) / 0.5);
     }
+
     50% {
       border-color: hsl(var(--primary));
     }
@@ -243,9 +268,12 @@
 
   /* Tour spotlight pulse animation */
   @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
       box-shadow: 0 0 0 4px hsla(var(--primary), 0.5), 0 0 0 9999px rgba(0, 0, 0, 0.8);
     }
+
     50% {
       box-shadow: 0 0 0 8px hsla(var(--primary), 0.7), 0 0 0 9999px rgba(0, 0, 0, 0.75);
     }
@@ -261,10 +289,12 @@
       transform: scale(0.8);
       opacity: 0;
     }
+
     50% {
       transform: scale(1.2);
       opacity: 1;
     }
+
     100% {
       transform: scale(1);
       opacity: 1;

@@ -1,9 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 import { format } from 'date-fns';
 import { offlineQuery } from '@/utils/offlineWrapper';
+import {
+  sortTasksByDueTime,
+  getTaskUrgency,
+  getTaskTimeCategory,
+  validateTaskScheduling,
+  hasTimeConflict,
+  isTaskOverdue
+} from '@/utils/taskTimeHelpers';
 
 export interface DbTask {
   id: string;
@@ -53,7 +61,7 @@ export const useTasks = (selectedDate?: Date) => {
     }
 
     setError(null);
-    
+
     // Use offline-first query
     const result = await offlineQuery({
       queryFn: async () => {
@@ -86,29 +94,6 @@ export const useTasks = (selectedDate?: Date) => {
     setLoading(false);
   }, [user, selectedDate]);
 
-      if (selectedDate) {
-        const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        query = query.eq('scheduled_date', dateStr);
-      }
-
-      const { data, error: fetchError } = await query;
-
-      if (fetchError) throw fetchError;
-      setTasks(data || []);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch tasks';
-      console.error('Error fetching tasks:', err);
-      setError(message);
-      toast({
-        title: 'Unable to load tasks',
-        description: 'Please check your connection and try again.',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [user, selectedDate, toast]);
-
   useEffect(() => {
     fetchTasks();
 
@@ -129,7 +114,7 @@ export const useTasks = (selectedDate?: Date) => {
           if (payload.eventType === 'INSERT') {
             setTasks(prev => [...prev, payload.new as DbTask].sort((a, b) => a.start_time.localeCompare(b.start_time)));
           } else if (payload.eventType === 'UPDATE') {
-            setTasks(prev => prev.map(t => 
+            setTasks(prev => prev.map(t =>
               t.id === payload.new.id ? payload.new as DbTask : t
             ));
           } else if (payload.eventType === 'DELETE') {
@@ -146,6 +131,27 @@ export const useTasks = (selectedDate?: Date) => {
 
   const createTask = async (input: CreateTaskInput) => {
     if (!user) return null;
+
+    // Validate task scheduling
+    const validation = validateTaskScheduling(input);
+    if (!validation.isValid) {
+      toast({
+        title: 'Invalid Task',
+        description: validation.error,
+        variant: 'destructive'
+      });
+      return null;
+    }
+
+    // Check for time conflicts
+    const conflicts = tasks.filter(t => hasTimeConflict(t, input as DbTask));
+    if (conflicts.length > 0) {
+      toast({
+        title: 'Time Conflict',
+        description: `This task overlaps with "${conflicts[0].title}". Consider adjusting the time.`,
+      });
+      // Allow user to proceed, but warn them
+    }
 
     // Optimistic task with temp ID
     const tempId = `temp-${Date.now()}`;
@@ -244,7 +250,7 @@ export const useTasks = (selectedDate?: Date) => {
 
     // Store previous state for rollback
     const previousTasks = [...tasks];
-    
+
     // Optimistic update
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
     setMutating(true);
@@ -279,7 +285,7 @@ export const useTasks = (selectedDate?: Date) => {
 
     // Store for rollback
     const taskToDelete = tasks.find(t => t.id === id);
-    
+
     // Optimistic delete
     setTasks(prev => prev.filter(t => t.id !== id));
     setMutating(true);
@@ -292,7 +298,7 @@ export const useTasks = (selectedDate?: Date) => {
         .eq('user_id', user.id);
 
       if (error) throw error;
-      
+
       toast({
         title: 'Task deleted',
         description: 'Task has been removed.'
@@ -317,14 +323,50 @@ export const useTasks = (selectedDate?: Date) => {
   };
 
   const completeTask = async (id: string, xpEarned: number) => {
-    return updateTask(id, { 
-      is_completed: true, 
-      xp_reward: xpEarned 
+    return updateTask(id, {
+      is_completed: true,
+      xp_reward: xpEarned
     });
   };
 
+  // Computed properties with time-based logic
+  const sortedTasks = useMemo(() =>
+    sortTasksByDueTime(tasks),
+    [tasks]
+  );
+
+  const overdueTasks = useMemo(() =>
+    tasks.filter(t => isTaskOverdue(t)),
+    [tasks]
+  );
+
+  const todayTasks = useMemo(() =>
+    tasks.filter(t => getTaskTimeCategory(t) === 'due_today'),
+    [tasks]
+  );
+
+  const upcomingTasks = useMemo(() =>
+    tasks.filter(t => getTaskTimeCategory(t) === 'due_this_week'),
+    [tasks]
+  );
+
+  const tasksByUrgency = useMemo(() => {
+    const categorized = {
+      critical: tasks.filter(t => getTaskUrgency(t) === 'critical'),
+      high: tasks.filter(t => getTaskUrgency(t) === 'high'),
+      medium: tasks.filter(t => getTaskUrgency(t) === 'medium'),
+      low: tasks.filter(t => getTaskUrgency(t) === 'low'),
+    };
+    return categorized;
+  }, [tasks]);
+
   return {
-    tasks,
+    tasks: sortedTasks, // Return sorted tasks by default
+    rawTasks: tasks, // Original unsorted tasks
+    overdueTasks,
+    todayTasks,
+    upcomingTasks,
+    tasksByUrgency,
     loading,
     error,
     mutating,

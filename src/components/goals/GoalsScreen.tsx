@@ -23,7 +23,7 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
     color: '#8B5CF6'
   });
 
-  const totalProgress = goals.length > 0 
+  const totalProgress = goals.length > 0
     ? Math.round(goals.reduce((acc, g) => acc + (g.progress || 0), 0) / goals.length)
     : 0;
 
@@ -32,16 +32,36 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
       console.log('Goal title is empty');
       return;
     }
-    
-    console.log('Creating goal:', newGoal);
+
+    // Convert target_date to proper YYYY-MM-DD format based on goal type
+    let formattedDate = newGoal.target_date;
+    if (formattedDate) {
+      if (newGoal.type === 'year') {
+        // Year only: "2026" -> "2026-12-31" (end of year)
+        formattedDate = `${formattedDate}-12-31`;
+      } else if (newGoal.type === 'month') {
+        // Month: "2026-06" -> "2026-06-30" (end of month)
+        const [year, month] = formattedDate.split('-');
+        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+        formattedDate = `${year}-${month}-${lastDay.toString().padStart(2, '0')}`;
+      }
+      // Week type already has full date format
+    }
+
+    const goalToCreate = {
+      ...newGoal,
+      target_date: formattedDate
+    };
+
+    console.log('Creating goal:', goalToCreate);
     setCreating(true);
     try {
-      const result = await createGoal(newGoal);
+      const result = await createGoal(goalToCreate);
       console.log('Goal creation result:', result);
       if (result) {
         setShowCreateModal(false);
         setNewGoal({ title: '', description: '', type: 'month', target_date: '', color: '#8B5CF6' });
-        
+
         // If it's a year goal, open the planner
         if (newGoal.type === 'year' && onOpenPlanner) {
           setTimeout(() => {
@@ -143,8 +163,8 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
           </h2>
           <div className="space-y-3">
             {yearGoals.map(goal => (
-              <GoalCard 
-                key={goal.id} 
+              <GoalCard
+                key={goal.id}
                 goal={{
                   id: goal.id,
                   type: goal.type as 'year' | 'month' | 'week',
@@ -154,7 +174,7 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
                   progress_percent: goal.progress || 0,
                   is_active: goal.is_active ?? true,
                   health_score: 70,
-                }} 
+                }}
               />
             ))}
           </div>
@@ -169,8 +189,8 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
           </h2>
           <div className="space-y-3">
             {monthGoals.map(goal => (
-              <GoalCard 
-                key={goal.id} 
+              <GoalCard
+                key={goal.id}
                 goal={{
                   id: goal.id,
                   type: goal.type as 'year' | 'month' | 'week',
@@ -180,7 +200,7 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
                   progress_percent: goal.progress || 0,
                   is_active: goal.is_active ?? true,
                   health_score: 70,
-                }} 
+                }}
               />
             ))}
           </div>
@@ -207,11 +227,11 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
       {/* Create Goal Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div 
+          <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setShowCreateModal(false)}
           />
-          
+
           <div className="relative w-full max-w-md bg-card border-t border-x border-border rounded-t-3xl max-h-[85vh] flex flex-col animate-in slide-in-from-bottom duration-300">
             <div className="flex items-center justify-between p-4 border-b border-border">
               <h2 className="text-lg font-bold text-foreground">Create Goal</h2>
@@ -230,8 +250,8 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
                       onClick={() => setNewGoal(prev => ({ ...prev, type }))}
                       className={cn(
                         "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all capitalize",
-                        newGoal.type === type 
-                          ? "bg-primary text-primary-foreground" 
+                        newGoal.type === type
+                          ? "bg-primary text-primary-foreground"
                           : "bg-secondary text-muted-foreground hover:bg-secondary/80"
                       )}
                     >
@@ -262,20 +282,29 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Target Date</label>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">
+                  Target {newGoal.type === 'year' ? 'Year' : newGoal.type === 'month' ? 'Month' : 'Date'}
+                </label>
                 <Input
-                  type="date"
+                  type={newGoal.type === 'year' ? 'number' : newGoal.type === 'month' ? 'month' : 'date'}
                   value={newGoal.target_date}
                   onChange={(e) => setNewGoal(prev => ({ ...prev, target_date: e.target.value }))}
                   className="bg-secondary/50"
+                  placeholder={
+                    newGoal.type === 'year' ? 'e.g., 2026' :
+                      newGoal.type === 'month' ? 'Select month' :
+                        'Select date'
+                  }
+                  min={newGoal.type === 'year' ? new Date().getFullYear() : undefined}
+                  max={newGoal.type === 'year' ? new Date().getFullYear() + 10 : undefined}
                 />
               </div>
             </div>
 
-            <div className="p-4 border-t border-border bg-card">
-              <Button 
-                variant="glow" 
-                className="w-full" 
+            <div className="p-4 pb-20 border-t border-border bg-card">
+              <Button
+                variant="glow"
+                className="w-full"
                 onClick={handleCreateGoal}
                 disabled={!newGoal.title.trim() || creating}
               >

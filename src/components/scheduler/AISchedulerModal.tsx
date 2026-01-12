@@ -75,10 +75,10 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
 
   const handleSubmit = async () => {
     if (!input.trim()) return;
-    
+
     setIsProcessing(true);
     setError(null);
-    
+
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     const useRealAI = useAI && apiKey && apiKey !== 'YOUR_API_KEY_HERE';
 
@@ -138,7 +138,7 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
 
       const peakStartMinutes = peakStart * 60;
       const peakEndMinutes = peakEnd * 60;
-      
+
       // Generate tasks scheduled based on energy profile
       const mockTasks: GeneratedTask[] = [
         {
@@ -155,6 +155,21 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
           suggestedTime: `${formatTimeFromMinutes(peakStartMinutes + 120)} - ${formatTimeFromMinutes(peakStartMinutes + 180)}`,
           linkedGoal: "Crack JEE 2026"
         },
+        {
+          title: "Chemistry Revision - Organic",
+          duration: 45,
+          priority: 'medium',
+          suggestedTime: `${formatTimeFromMinutes(peakStartMinutes + 200)} - ${formatTimeFromMinutes(peakStartMinutes + 245)}`,
+        }
+      ];
+
+      setGeneratedTasks(mockTasks);
+      setSelectedTasks(mockTasks.map((_, i) => i));
+      setIsProcessing(false);
+    }, 2000);
+  };
+
+  const handleVoiceInput = () => {
     if (voiceIsListening) {
       stopListening();
       setIsListening(false);
@@ -164,21 +179,6 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
       startListening();
       setIsListening(true);
     }
-      ];
-      
-      setGeneratedTasks(mockTasks);
-      setSelectedTasks(mockTasks.map((_, i) => i));
-      setIsProcessing(false);
-    }, 2000);
-  };
-
-  const handleVoiceInput = () => {
-    setIsListening(true);
-    // Simulate voice recognition
-    setTimeout(() => {
-      setInput("Study Physics for 2 hours and complete the math assignment");
-      setIsListening(false);
-    }, 2000);
   };
 
   const toggleTaskSelection = (index: number) => {
@@ -187,10 +187,13 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
     );
   };
 
-  const heck if this is a recurring task
+  const handleAddToSchedule = async () => {
+    const tasksToAdd = generatedTasks.filter((_, i) => selectedTasks.includes(i));
+
+    // Check if this is a recurring task
     const recurringInfo = parseRecurringTask(input);
     const deadline = findBestDeadline(input, selectedDate);
-    
+
     // Convert to database format and save
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
     const taskInputs: CreateTaskInput[] = [];
@@ -242,10 +245,7 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
           xp_reward: task.duration >= 60 ? 20 : 10,
         });
       });
-    } goal_id: goals.find(g => g.title === task.linkedGoal)?.id,
-        xp_reward: task.duration >= 60 ? 20 : 10,
-      };
-    });
+    }
 
     await createBulkTasks(taskInputs);
     onTasksGenerated?.(tasksToAdd);
@@ -268,11 +268,11 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
       <div className="relative w-full max-w-md bg-card border-t border-x border-border rounded-t-3xl max-h-[85vh] overflow-hidden animate-in slide-in-from-bottom duration-300">
         {/* Header */}
@@ -377,12 +377,12 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
                           <Check className="w-3 h-3 text-primary-foreground" />
                         )}
                       </div>
-                      
+
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-semibold text-foreground truncate">
                           {task.title}
                         </h4>
-                        
+
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <span className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Clock className="w-3 h-3" />
@@ -414,8 +414,8 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
                 ))}
               </div>
 
-              <Button 
-                className="w-full" 
+              <Button
+                className="w-full"
                 variant="glow"
                 onClick={handleAddToSchedule}
                 disabled={selectedTasks.length === 0}
@@ -444,7 +444,7 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
               >
                 {voiceIsListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               </Button>
-              
+
               <div className="flex-1 relative">
                 <input
                   type="text"
@@ -455,7 +455,7 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
                   onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                 />
               </div>
-              
+
               <Button
                 variant="glow"
                 size="icon"
@@ -466,7 +466,7 @@ export const AISchedulerModal: React.FC<AISchedulerModalProps> = ({
                 <Send className="w-5 h-5" />
               </Button>
             </div>
-            
+
             {isListening && (
               <p className="text-xs text-center text-danger mt-2 animate-pulse">
                 Listening... Speak now

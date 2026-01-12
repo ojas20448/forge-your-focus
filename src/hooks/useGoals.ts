@@ -1,8 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 import { offlineQuery } from '@/utils/offlineWrapper';
+import {
+  getGoalStatus,
+  getGoalUrgency,
+  getTimeRemaining,
+  isValidGoalDate,
+  getProgressBasedOnTime
+} from '@/utils/goalTimeHelpers';
 
 export interface DbGoal {
   id: string;
@@ -45,7 +52,7 @@ export const useGoals = () => {
     }
 
     setError(null);
-    
+
     // Use offline-first query
     const result = await offlineQuery({
       queryFn: async () => {
@@ -97,7 +104,7 @@ export const useGoals = () => {
           if (payload.eventType === 'INSERT') {
             setGoals(prev => [payload.new as DbGoal, ...prev]);
           } else if (payload.eventType === 'UPDATE') {
-            setGoals(prev => prev.map(g => 
+            setGoals(prev => prev.map(g =>
               g.id === payload.new.id ? payload.new as DbGoal : g
             ));
           } else if (payload.eventType === 'DELETE') {
@@ -114,6 +121,26 @@ export const useGoals = () => {
 
   const createGoal = async (input: CreateGoalInput) => {
     if (!user) return null;
+
+    // Validate target date if provided
+    if (input.target_date) {
+      const validation = isValidGoalDate(input.target_date);
+      if (!validation.isValid) {
+        toast({
+          title: 'Invalid Date',
+          description: validation.error,
+          variant: 'destructive'
+        });
+        return null;
+      }
+      // Show warning if date is very soon
+      if (validation.error) {
+        toast({
+          title: 'Note',
+          description: validation.error,
+        });
+      }
+    }
 
     // Optimistic goal with temp ID
     const tempId = `temp-${Date.now()}`;
@@ -179,7 +206,7 @@ export const useGoals = () => {
 
     // Store previous state for rollback
     const previousGoals = [...goals];
-    
+
     // Optimistic update
     setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
     setMutating(true);
@@ -214,7 +241,7 @@ export const useGoals = () => {
 
     // Store for rollback
     const goalToDelete = goals.find(g => g.id === id);
-    
+
     // Optimistic delete
     setGoals(prev => prev.filter(g => g.id !== id));
     setMutating(true);
@@ -227,7 +254,7 @@ export const useGoals = () => {
         .eq('user_id', user.id);
 
       if (error) throw error;
-      
+
       toast({
         title: 'Goal Deleted',
         description: 'Goal has been removed.'
@@ -259,11 +286,50 @@ export const useGoals = () => {
   const monthGoals = goals.filter(g => g.type === 'month');
   const weekGoals = goals.filter(g => g.type === 'week');
 
+  // Computed properties with time-based logic
+  const activeGoals = useMemo(() =>
+    goals.filter(g => getGoalStatus(g) === 'active'),
+    [goals]
+  );
+
+  const overdueGoals = useMemo(() =>
+    goals.filter(g => getGoalStatus(g) === 'overdue'),
+    [goals]
+  );
+
+  const upcomingGoals = useMemo(() =>
+    goals.filter(g => getGoalStatus(g) === 'upcoming'),
+    [goals]
+  );
+
+  const completedGoals = useMemo(() =>
+    goals.filter(g => getGoalStatus(g) === 'completed'),
+    [goals]
+  );
+
+  // Get goal with computed status fields
+  const getGoalWithStatus = useCallback((id: string) => {
+    const goal = goals.find(g => g.id === id);
+    if (!goal) return null;
+
+    return {
+      ...goal,
+      status: getGoalStatus(goal),
+      urgency: getGoalUrgency(goal),
+      timeRemaining: getTimeRemaining(goal.target_date),
+      progressTracking: getProgressBasedOnTime(goal),
+    };
+  }, [goals]);
+
   return {
     goals,
     yearGoals,
     monthGoals,
     weekGoals,
+    activeGoals,
+    overdueGoals,
+    upcomingGoals,
+    completedGoals,
     loading,
     error,
     mutating,
@@ -271,6 +337,7 @@ export const useGoals = () => {
     updateGoal,
     deleteGoal,
     updateProgress,
+    getGoalWithStatus,
     refetch: fetchGoals
   };
 };

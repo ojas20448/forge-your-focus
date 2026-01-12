@@ -1,4 +1,4 @@
-# 🚀 FocusForge - Quick Reference Guide
+VITE_GEMINI_API_KEY=your_key_herecp .env.example .env# 🚀 FocusForge - Quick Reference Guide
 
 ## 📦 What's Been Implemented
 
