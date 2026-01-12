@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
-import { Plus, Target, TrendingUp, Clock, Sparkles, X, Loader2 } from 'lucide-react';
+import { Plus, Target, TrendingUp, Clock, Sparkles, X, Loader2, Sun, Moon, Coffee, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { GoalCard } from './GoalCard';
 import { useGoals, CreateGoalInput } from '@/hooks/useGoals';
+import { useTasks } from '@/hooks/useTasks';
+import { useProfile } from '@/hooks/useProfile';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { createGeminiScheduler } from '@/utils/geminiScheduler';
+import { useToast } from '@/hooks/use-toast';
 
 interface GoalsScreenProps {
   onOpenPlanner?: () => void;
@@ -13,15 +18,30 @@ interface GoalsScreenProps {
 
 export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
   const { goals, yearGoals, monthGoals, loading, createGoal } = useGoals();
+  const { createBulkTasks } = useTasks();
+  const { profile } = useProfile();
+  const { toast } = useToast();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [newGoal, setNewGoal] = useState<CreateGoalInput>({
+  const [generatingTasks, setGeneratingTasks] = useState(false);
+  const [newGoal, setNewGoal] = useState<CreateGoalInput & { weeklyHours: number; preferredTime: string }>({
     title: '',
     description: '',
     type: 'month',
     target_date: '',
-    color: '#8B5CF6'
+    color: '#8B5CF6',
+    weeklyHours: 10,
+    preferredTime: 'flexible'
   });
+
+  const weeklyHoursOptions = [5, 10, 15, 20, 25, 30];
+  const timePreferences = [
+    { id: 'morning', label: '🌅 Morning', time: '6am-12pm' },
+    { id: 'afternoon', label: '☀️ Afternoon', time: '12pm-5pm' },
+    { id: 'evening', label: '🌆 Evening', time: '5pm-9pm' },
+    { id: 'night', label: '🌙 Night', time: '9pm-1am' },
+    { id: 'flexible', label: '🔄 Flexible', time: 'Anytime' },
+  ];
 
   const totalProgress = goals.length > 0
     ? Math.round(goals.reduce((acc, g) => acc + (g.progress || 0), 0) / goals.length)
@@ -37,20 +57,20 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
     let formattedDate = newGoal.target_date;
     if (formattedDate) {
       if (newGoal.type === 'year') {
-        // Year only: "2026" -> "2026-12-31" (end of year)
         formattedDate = `${formattedDate}-12-31`;
       } else if (newGoal.type === 'month') {
-        // Month: "2026-06" -> "2026-06-30" (end of month)
         const [year, month] = formattedDate.split('-');
         const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
         formattedDate = `${year}-${month}-${lastDay.toString().padStart(2, '0')}`;
       }
-      // Week type already has full date format
     }
 
     const goalToCreate = {
-      ...newGoal,
-      target_date: formattedDate
+      title: newGoal.title,
+      description: `📅 ${newGoal.weeklyHours} hrs/week | ⏰ Preferred: ${newGoal.preferredTime}\n\n${newGoal.description || ''}`,
+      type: newGoal.type,
+      target_date: formattedDate,
+      color: newGoal.color
     };
 
     console.log('Creating goal:', goalToCreate);
@@ -59,14 +79,64 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
       const result = await createGoal(goalToCreate);
       console.log('Goal creation result:', result);
       if (result) {
-        setShowCreateModal(false);
-        setNewGoal({ title: '', description: '', type: 'month', target_date: '', color: '#8B5CF6' });
+        // Generate AI tasks for this goal
+        setGeneratingTasks(true);
+        try {
+          const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+          if (apiKey && apiKey !== 'YOUR_API_KEY_HERE') {
+            const scheduler = createGeminiScheduler(apiKey);
+            const aiTasks = await scheduler.generateSchedule({
+              userInput: `Create 2-3 actionable tasks for today to work on: ${newGoal.title}. Schedule them during ${newGoal.preferredTime} time. Each task should be 45-90 minutes.`,
+              energyProfile: (profile?.energy_profile as 'morning_lark' | 'night_owl' | 'balanced') || 'balanced',
+              existingTasks: [],
+              goals: [{ title: newGoal.title }],
+              currentTime: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+            });
 
-        // If it's a year goal, open the planner
+            // Create tasks in database
+            const tasksToCreate = aiTasks.slice(0, 3).map((task) => {
+              const startTime = task.suggestedTime.split(' - ')[0] || '09:00';
+              const endTime = task.suggestedTime.split(' - ')[1] || '10:00';
+              return {
+                title: task.title,
+                description: task.description || '',
+                duration_minutes: task.duration,
+                priority: task.priority,
+                scheduled_date: format(new Date(), 'yyyy-MM-dd'),
+                start_time: startTime,
+                end_time: endTime,
+                goal_id: result.id
+              };
+            });
+
+            if (tasksToCreate.length > 0) {
+              await createBulkTasks(tasksToCreate);
+              toast({
+                title: '✨ Tasks Created!',
+                description: `${tasksToCreate.length} tasks added to today's schedule for "${newGoal.title}"`
+              });
+            }
+          } else {
+            toast({
+              title: 'Goal Created',
+              description: 'Open AI Planner to generate tasks for this goal.'
+            });
+          }
+        } catch (aiError) {
+          console.error('Error generating AI tasks:', aiError);
+          toast({
+            title: 'Goal Created',
+            description: 'Could not auto-generate tasks. Use AI Planner manually.'
+          });
+        } finally {
+          setGeneratingTasks(false);
+        }
+
+        setShowCreateModal(false);
+        setNewGoal({ title: '', description: '', type: 'month', target_date: '', color: '#8B5CF6', weeklyHours: 10, preferredTime: 'flexible' });
+
         if (newGoal.type === 'year' && onOpenPlanner) {
-          setTimeout(() => {
-            onOpenPlanner();
-          }, 500);
+          setTimeout(() => onOpenPlanner(), 500);
         }
       }
     } catch (error) {
@@ -175,6 +245,12 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
                   is_active: goal.is_active ?? true,
                   health_score: 70,
                 }}
+                onClick={() => {
+                  // For year goals, open the planner
+                  if (onOpenPlanner) {
+                    onOpenPlanner();
+                  }
+                }}
               />
             ))}
           </div>
@@ -200,6 +276,11 @@ export const GoalsScreen: React.FC<GoalsScreenProps> = ({ onOpenPlanner }) => {
                   progress_percent: goal.progress || 0,
                   is_active: goal.is_active ?? true,
                   health_score: 70,
+                }}
+                onClick={() => {
+                  // For month/week goals, could navigate to goal details
+                  console.log('Goal clicked:', goal.id);
+                  // TODO: Add navigation to goal details page
                 }}
               />
             ))}

@@ -27,7 +27,7 @@ export const RaidsScreen: React.FC = () => {
   const [raidMembers, setRaidMembers] = useState<Record<string, RaidMember[]>>({});
   const [raidLeaderboards, setRaidLeaderboards] = useState<Record<string, RaidLeaderboardEntry[]>>({});
   const [selectedRaid, setSelectedRaid] = useState<string | null>(null);
-  
+
   const { raids, loading, createRaid, joinRaid, getRaidMembers } = useRaids();
   const { profile } = useProfile();
   const { user } = useAuth();
@@ -82,7 +82,7 @@ export const RaidsScreen: React.FC = () => {
 
   const handleCreateRaid = async () => {
     if (!newRaid.name.trim()) return;
-    
+
     setCreating(true);
     await createRaid({
       name: newRaid.name,
@@ -161,15 +161,15 @@ export const RaidsScreen: React.FC = () => {
             </Button>
           )}
         </div>
-        
+
         {/* Tabs */}
         <div className="flex px-4 pb-2 gap-2">
           <button
             onClick={() => setActiveTab('raids')}
             className={cn(
               "flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all",
-              activeTab === 'raids' 
-                ? "bg-primary text-primary-foreground" 
+              activeTab === 'raids'
+                ? "bg-primary text-primary-foreground"
                 : "bg-secondary text-muted-foreground"
             )}
           >
@@ -180,8 +180,8 @@ export const RaidsScreen: React.FC = () => {
             onClick={() => setActiveTab('league')}
             className={cn(
               "flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all",
-              activeTab === 'league' 
-                ? "bg-primary text-primary-foreground" 
+              activeTab === 'league'
+                ? "bg-primary text-primary-foreground"
                 : "bg-secondary text-muted-foreground"
             )}
           >
@@ -204,7 +204,7 @@ export const RaidsScreen: React.FC = () => {
                 <section key={raid.id} className="px-4 py-4">
                   <div className="bg-gradient-to-br from-card to-primary/5 rounded-2xl border border-primary/30 p-4 overflow-hidden relative">
                     <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
-                    
+
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
@@ -231,7 +231,7 @@ export const RaidsScreen: React.FC = () => {
                           </span>
                         </div>
                         <div className="h-3 bg-secondary rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all duration-500"
                             style={{ width: `${Math.min(100, raidProgress)}%` }}
                           />
@@ -315,7 +315,7 @@ export const RaidsScreen: React.FC = () => {
                   <p className="text-sm text-muted-foreground">Level {profile?.level || 1}</p>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-secondary/50 rounded-xl p-3 text-center">
                   <Zap className="w-4 h-4 text-xp-glow mx-auto mb-1" />
@@ -347,16 +347,16 @@ export const RaidsScreen: React.FC = () => {
                   key={player.rank}
                   className={cn(
                     "flex items-center gap-3 p-3 rounded-xl border transition-all",
-                    player.isYou 
-                      ? "bg-primary/10 border-primary/30" 
+                    player.isYou
+                      ? "bg-primary/10 border-primary/30"
                       : "bg-card border-border/50"
                   )}
                 >
                   <span className={cn(
                     "text-lg font-bold w-8 font-mono-time",
                     player.rank === 1 ? "text-league-gold" :
-                    player.rank === 2 ? "text-league-silver" :
-                    player.rank === 3 ? "text-league-bronze" : "text-muted-foreground"
+                      player.rank === 2 ? "text-league-silver" :
+                        player.rank === 3 ? "text-league-bronze" : "text-muted-foreground"
                   )}>
                     #{player.rank}
                   </span>
@@ -387,11 +387,11 @@ export const RaidsScreen: React.FC = () => {
       {/* Create Raid Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div 
+          <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setShowCreateModal(false)}
           />
-          
+
           <div className="relative w-full max-w-md bg-card border-t border-x border-border rounded-t-3xl max-h-[85vh] overflow-hidden animate-in slide-in-from-bottom duration-300">
             <div className="flex items-center justify-between p-4 border-b border-border">
               <h2 className="text-lg font-bold text-foreground">Create Raid</h2>
@@ -400,7 +400,7 @@ export const RaidsScreen: React.FC = () => {
               </Button>
             </div>
 
-            <div className="p-4 space-y-4 overflow-y-auto">
+            <div className="p-4 pb-24 space-y-4 overflow-y-auto">
               <div>
                 <label className="text-sm font-medium text-foreground mb-1.5 block">Raid Name</label>
                 <Input
@@ -451,9 +451,9 @@ export const RaidsScreen: React.FC = () => {
                 />
               </div>
 
-              <Button 
-                variant="glow" 
-                className="w-full" 
+              <Button
+                variant="glow"
+                className="w-full"
                 onClick={handleCreateRaid}
                 disabled={!newRaid.name.trim() || creating}
               >

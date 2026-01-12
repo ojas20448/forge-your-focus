@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Sparkles, Calendar, Clock, Target, ChevronRight, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, Calendar, Clock, Target, ChevronRight, Check, Loader2, Pencil, Trash2, X, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { useGoals } from '@/hooks/useGoals';
@@ -26,7 +27,7 @@ interface GoalPlannerScreenProps {
   goalTitle?: string;
 }
 
-export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({ 
+export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
   onBack,
   goalTitle
 }) => {
@@ -36,11 +37,13 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
   const [showPlan, setShowPlan] = useState(false);
   const [acceptedMilestones, setAcceptedMilestones] = useState<number[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
-  
+  const [editingMilestone, setEditingMilestone] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<{ title: string, requiredHours: string }>({ title: '', requiredHours: '' });
+
   // Use the first year goal or provided goal title
   const activeGoal = yearGoals[0];
   const displayTitle = goalTitle || activeGoal?.title || "Your Goal";
-  
+
   useEffect(() => {
     // Check if goal has existing milestones
     if (activeGoal?.success_criteria && Array.isArray((activeGoal.success_criteria as any)?.milestones)) {
@@ -82,9 +85,43 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
   }, [milestones, displayTitle]);
 
   const handleAcceptMilestone = (index: number) => {
-    setAcceptedMilestones(prev => 
+    setAcceptedMilestones(prev =>
       prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
     );
+  };
+
+  const startEditing = (index: number) => {
+    setEditingMilestone(index);
+    setEditForm({
+      title: milestones[index].title,
+      requiredHours: milestones[index].requiredHours.toString()
+    });
+  };
+
+  const saveEdit = () => {
+    if (editingMilestone === null) return;
+
+    const updatedMilestones = [...milestones];
+    updatedMilestones[editingMilestone] = {
+      ...updatedMilestones[editingMilestone],
+      title: editForm.title,
+      requiredHours: parseInt(editForm.requiredHours) || 0
+    };
+
+    setMilestones(updatedMilestones);
+    setEditingMilestone(null);
+    toast({ title: 'Milestone updated' });
+  };
+
+  const deleteMilestone = (index: number) => {
+    const updatedMilestones = milestones.filter((_, i) => i !== index);
+    setMilestones(updatedMilestones);
+    // Also remove from accepted if it was accepted
+    setAcceptedMilestones(prev => {
+      const newAccepted = prev.filter(i => i !== index).map(i => i > index ? i - 1 : i);
+      return newAccepted;
+    });
+    toast({ title: 'Milestone removed' });
   };
 
   const handleGeneratePlan = async () => {
@@ -100,7 +137,7 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
     setIsGenerating(true);
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      
+
       if (apiKey && apiKey !== 'YOUR_API_KEY_HERE' && activeGoal) {
         // Use AI to generate milestones
         const aiMilestones = await generateMilestonePlan(
@@ -110,25 +147,25 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
           20, // Default weekly hours
           apiKey
         );
-        
+
         const formattedMilestones = aiMilestones.map(m => ({
           ...m,
           isComplete: false
         }));
-        
+
         setMilestones(formattedMilestones);
         setShowPlan(true);
-        
+
         toast({
           title: 'AI Plan Generated! 🤖',
           description: `Created ${formattedMilestones.length} smart milestones for your goal.`
         });
       } else {
         // Fallback to basic generation
-        const monthsToGoal = activeGoal?.target_date 
+        const monthsToGoal = activeGoal?.target_date
           ? Math.ceil((new Date(activeGoal.target_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30))
           : 5;
-        
+
         const generatedMilestones: Milestone[] = Array.from({ length: Math.min(monthsToGoal, 12) }, (_, i) => {
           const month = new Date();
           month.setMonth(month.getMonth() + i + 1);
@@ -142,7 +179,7 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
 
         setMilestones(generatedMilestones);
         setShowPlan(true);
-        
+
         toast({
           title: 'Plan generated!',
           description: `Created ${generatedMilestones.length} milestones. Add Gemini API key for AI-powered planning.`
@@ -170,9 +207,9 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
       {/* Header */}
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border">
         <div className="flex items-center gap-3 px-4 py-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onBack}
             className="text-muted-foreground hover:text-foreground"
           >
@@ -211,7 +248,7 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
 
         {/* Generate Plan Button */}
         {!showPlan && (
-          <Button 
+          <Button
             className="w-full h-14"
             variant="glow"
             onClick={handleGeneratePlan}
@@ -254,35 +291,86 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
                       : "bg-card border-border hover:border-primary/30"
                   )}
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded">
-                          {milestone.month}
-                        </span>
-                        {acceptedMilestones.includes(index) && (
-                          <Check className="w-4 h-4 text-success" />
-                        )}
+                  {editingMilestone === index ? (
+                    <div className="space-y-3">
+                      <div>
+                        <Input
+                          value={editForm.title}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                          placeholder="Milestone title"
+                          className="mb-2"
+                        />
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={editForm.requiredHours}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, requiredHours: e.target.value }))}
+                            placeholder="Hours"
+                            className="w-24"
+                          />
+                          <span className="text-sm text-muted-foreground">hours required</span>
+                        </div>
                       </div>
-                      <h3 className="text-sm font-semibold text-foreground">
-                        {milestone.title}
-                      </h3>
+                      <div className="flex gap-2 justify-end">
+                        <Button size="sm" variant="ghost" onClick={() => setEditingMilestone(null)}>
+                          <X className="w-4 h-4 mr-1" /> Cancel
+                        </Button>
+                        <Button size="sm" onClick={saveEdit}>
+                          <Save className="w-4 h-4 mr-1" /> Save
+                        </Button>
+                      </div>
                     </div>
-                    <Button
-                      size="sm"
-                      variant={acceptedMilestones.includes(index) ? "success" : "outline"}
-                      onClick={() => handleAcceptMilestone(index)}
-                      className="shrink-0"
-                    >
-                      {acceptedMilestones.includes(index) ? "Accepted" : "Accept"}
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>{milestone.requiredHours} hours required</span>
-                    <span className="text-muted-foreground/50">•</span>
-                    <span>~{Math.ceil(milestone.requiredHours / 4)} hrs/week</span>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded">
+                              {milestone.month}
+                            </span>
+                            {acceptedMilestones.includes(index) && (
+                              <Check className="w-4 h-4 text-success" />
+                            )}
+                          </div>
+                          <h3 className="text-sm font-semibold text-foreground">
+                            {milestone.title}
+                          </h3>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            onClick={() => startEditing(index)}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={() => deleteMilestone(index)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={acceptedMilestones.includes(index) ? "success" : "outline"}
+                            onClick={() => handleAcceptMilestone(index)}
+                            className="shrink-0 ml-1"
+                          >
+                            {acceptedMilestones.includes(index) ? "Accepted" : "Accept"}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>{milestone.requiredHours} hours required</span>
+                        <span className="text-muted-foreground/50">•</span>
+                        <span>~{Math.ceil(milestone.requiredHours / 4)} hrs/week</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -295,8 +383,8 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
                   {acceptedHours}/{totalHours} hrs
                 </span>
               </div>
-              <Progress 
-                value={(acceptedMilestones.length / milestones.length) * 100} 
+              <Progress
+                value={(acceptedMilestones.length / milestones.length) * 100}
                 className="h-2"
               />
             </div>
@@ -355,8 +443,8 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-foreground mb-1">AI Suggestion</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Based on your energy profile (morning lark), I recommend scheduling Physics 
-                  during 8-11 AM and lighter review tasks in the evening. This optimizes 
+                  Based on your energy profile (morning lark), I recommend scheduling Physics
+                  during 8-11 AM and lighter review tasks in the evening. This optimizes
                   retention by 23%.
                 </p>
               </div>

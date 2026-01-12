@@ -4,7 +4,6 @@
  */
 
 import { useOnlineStatus } from '@/hooks/useOptimisticMutation';
-import { offlineStorage } from './offlineStorage';
 
 interface QueryOptions<T> {
   queryFn: () => Promise<T>;
@@ -12,6 +11,26 @@ interface QueryOptions<T> {
   fallbackData?: T;
   silentFail?: boolean;
 }
+
+/**
+ * Simple in-memory cache for offline storage operations
+ */
+const memoryCache = new Map<string, any>();
+
+const offlineStorage = {
+  get: async (key: string) => {
+    return memoryCache.get(key);
+  },
+  set: async (key: string, value: any) => {
+    memoryCache.set(key, value);
+  },
+  delete: async (key: string) => {
+    memoryCache.delete(key);
+  },
+  clear: async () => {
+    memoryCache.clear();
+  },
+};
 
 /**
  * Wraps a Supabase query with offline-first logic
@@ -35,16 +54,16 @@ export async function offlineQuery<T>({
         return { data: cached as T, error: null, fromCache: true };
       }
       // No cache, return fallback
-      return { 
-        data: fallbackData || null, 
-        error: new Error('Offline - no cached data'), 
-        fromCache: false 
+      return {
+        data: fallbackData || null,
+        error: new Error('Offline - no cached data'),
+        fromCache: false
       };
     } catch (err) {
-      return { 
-        data: fallbackData || null, 
-        error: err instanceof Error ? err : new Error('Cache read failed'), 
-        fromCache: false 
+      return {
+        data: fallbackData || null,
+        error: err instanceof Error ? err : new Error('Cache read failed'),
+        fromCache: false
       };
     }
   }
@@ -56,7 +75,7 @@ export async function offlineQuery<T>({
     );
 
     const data = await Promise.race([queryFn(), timeoutPromise]);
-    
+
     // Cache successful result
     try {
       await offlineStorage.set(cacheKey, data);
@@ -79,44 +98,25 @@ export async function offlineQuery<T>({
       }
 
       // Return fallback without throwing
-      return { 
-        data: fallbackData || null, 
-        error: err instanceof Error ? err : new Error('Query failed'), 
-        fromCache: false 
+      return {
+        data: fallbackData || null,
+        error: err instanceof Error ? err : new Error('Query failed'),
+        fromCache: false
       };
     }
 
     // Not silent - return error
-    return { 
-      data: null, 
-      error: err instanceof Error ? err : new Error('Query failed'), 
-      fromCache: false 
+    return {
+      data: null,
+      error: err instanceof Error ? err : new Error('Query failed'),
+      fromCache: false
     };
   }
 }
 
-/**
- * Simple in-memory cache for offline storage operations
- */
-const memoryCache = new Map<string, any>();
-
-const offlineStorageShim = {
-  get: async (key: string) => {
-    return memoryCache.get(key);
-  },
-  set: async (key: string, value: any) => {
-    memoryCache.set(key, value);
-  },
-  delete: async (key: string) => {
-    memoryCache.delete(key);
-  },
-  clear: async () => {
-    memoryCache.clear();
-  },
-};
 
 // Export simple storage that works without SQLite
-export const simpleStorage = offlineStorageShim;
+export const simpleStorage = offlineStorage;
 
 /**
  * Higher-order function to wrap any hook with offline support
@@ -130,7 +130,7 @@ export function withOfflineSupport<T extends (...args: any[]) => any>(
 ): T {
   return ((...args: Parameters<T>) => {
     const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
-    
+
     if (!isOnline && options.fallbackData) {
       return options.fallbackData;
     }

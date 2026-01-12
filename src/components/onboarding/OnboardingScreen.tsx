@@ -42,7 +42,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
     manifestationEnabled: true
   });
 
-  const totalSteps = 7; // Increased from 5 to 7
+  const totalSteps = 6; // Reduced from 7 - removed redundant time preference question
   const progress = ((step + 1) / totalSteps) * 100;
 
   const energyProfiles = [
@@ -52,9 +52,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   ];
 
   const weeklyHoursOptions = [10, 15, 20, 25, 30, 40];
-  
+
   const goalHoursOptions = [5, 10, 15, 20, 25, 30];
-  
+
   const timePreferences = [
     { id: 'morning' as const, label: '🌅 Morning', time: '6am-12pm', desc: 'Fresh start' },
     { id: 'afternoon' as const, label: '☀️ Afternoon', time: '12pm-5pm', desc: 'Productive hours' },
@@ -125,7 +125,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
         if (useRealAI) {
           const scheduler = createGeminiScheduler(apiKey);
           const prompt = `Create a first-day starter plan for: ${data.yearGoal}. Generate 2-3 specific, actionable tasks to get started today. Each task should be 45-90 minutes.`;
-          
+
           const aiTasks = await scheduler.generateSchedule({
             userInput: prompt,
             energyProfile: data.energyProfile,
@@ -137,6 +137,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           // Create tasks in database
           const tasksToCreate = aiTasks.slice(0, 3).map((task, index) => {
             const startTime = task.suggestedTime.split(' - ')[0];
+            const endTime = task.suggestedTime.split(' - ')[1] || startTime;
             const [hours, minutes] = startTime.split(':').map(Number);
             const scheduleDate = new Date();
             scheduleDate.setHours(hours, minutes, 0, 0);
@@ -147,10 +148,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
               duration_minutes: task.duration,
               priority: task.priority,
               scheduled_date: format(new Date(), 'yyyy-MM-dd'),
-              scheduled_time: startTime,
-              task_type: task.taskType || 'deepwork',
-              linked_goal_id: goalData.id,
-              status: 'pending' as const
+              start_time: startTime,
+              end_time: endTime,
+              goal_id: goalData.id
             };
           });
 
@@ -188,7 +188,6 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
     switch (step) {
       case 1: return data.name.trim().length > 0;
       case 3: return data.goalWeeklyHours > 0;
-      case 4: return data.goalPreferredTime !== null;
       case 2: return data.yearGoal.trim().length > 0;
       default: return true;
     }
@@ -328,45 +327,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           </div>
         )}
 
-        {/* Step 4: Goal Preferred Time */}
-        {step === 4 && (
-          <div className="space-y-6 animate-in fade-in duration-500">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">
-                When to work on this goal?
-              </h2>
-              <p className="text-muted-foreground text-sm">
-                AI will prioritize scheduling tasks for this goal during your preferred time.
-              </p>
-            </div>
-            <div className="space-y-3">
-              {timePreferences.map((pref) => (
-                <button
-                  key={pref.id}
-                  onClick={() => setData({ ...data, goalPreferredTime: pref.id })}
-                  className={cn(
-                    "w-full p-4 rounded-xl border flex items-center justify-between transition-all",
-                    data.goalPreferredTime === pref.id
-                      ? "bg-primary/10 border-primary"
-                      : "bg-card border-border hover:border-muted-foreground/30"
-                  )}
-                >
-                  <div className="text-left">
-                    <p className="font-semibold text-foreground">{pref.label}</p>
-                    <p className="text-xs text-muted-foreground">{pref.time} • {pref.desc}</p>
-                  </div>
-                  {data.goalPreferredTime === pref.id && (
-                    <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-white" />
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* Step 5: Review Goal */}
         {step === 5 && (
           <div className="space-y-6 animate-in fade-in duration-500">
             <div>
@@ -413,8 +374,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           </div>
         )}
 
-        {/* Step 6: Energy Profile */}
-        {step === 6 && (
+        {/* Step 5: Energy Profile */}
+        {step === 5 && (
           <div className="space-y-6 animate-in fade-in duration-500">
             <div>
               <h2 className="text-2xl font-bold text-foreground mb-2">
@@ -455,8 +416,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           </div>
         )}
 
-        {/* Step 7: Total Weekly Hours */}
-        {step === 7 && (
+        {/* Step 6: Total Weekly Hours */}
+        {step === 6 && (
           <div className="space-y-6 animate-in fade-in duration-500">
             <div>
               <h2 className="text-2xl font-bold text-foreground mb-2">
@@ -517,8 +478,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
       {/* Bottom Action */}
       <div className="p-6 border-t border-border">
-        <Button 
-          className="w-full h-14" 
+        <Button
+          className="w-full h-14"
           variant="glow"
           onClick={handleNext}
           disabled={!canProceed() || saving}

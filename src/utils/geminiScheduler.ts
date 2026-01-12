@@ -251,18 +251,100 @@ Return ONLY the JSON array, no markdown.`;
     }
 
     const textResponse = data.candidates[0].content.parts[0].text;
-    const jsonMatch = textResponse.match(/\[[\s\S]*\]/);
 
-    if (!jsonMatch) {
-      console.error('Failed to parse JSON from response:', textResponse);
-      throw new Error('Failed to parse milestone plan from AI response');
+    // Try multiple parsing strategies
+    let jsonMatch = null;
+
+    // Strategy 1: Extract from markdown code block
+    const codeBlockMatch = textResponse.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeBlockMatch) {
+      const codeContent = codeBlockMatch[1].trim();
+      const arrayMatch = codeContent.match(/\[[\s\S]*\]/);
+      if (arrayMatch) {
+        jsonMatch = arrayMatch[0];
+      }
     }
 
-    return JSON.parse(jsonMatch[0]);
+    // Strategy 2: Direct JSON array extraction
+    if (!jsonMatch) {
+      const directMatch = textResponse.match(/\[[\s\S]*?\]/);
+      if (directMatch) {
+        jsonMatch = directMatch[0];
+      }
+    }
+
+    // Strategy 3: Clean up and try again
+    if (!jsonMatch) {
+      const cleaned = textResponse.replace(/```json\s*/g, '').replace(/```/g, '').trim();
+      const cleanedMatch = cleaned.match(/\[[\s\S]*\]/);
+      if (cleanedMatch) {
+        jsonMatch = cleanedMatch[0];
+      }
+    }
+
+    if (!jsonMatch) {
+      console.error('Failed to parse JSON from response:', textResponse.substring(0, 500));
+      // Return fallback milestones
+      return generateFallbackMilestones(goalTitle, monthsUntilTarget, weeklyHours);
+    }
+
+    try {
+      const parsed = JSON.parse(jsonMatch);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+      return generateFallbackMilestones(goalTitle, monthsUntilTarget, weeklyHours);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      return generateFallbackMilestones(goalTitle, monthsUntilTarget, weeklyHours);
+    }
   } catch (error) {
     console.error('Error generating milestone plan:', error);
-    throw error;
+    // Return fallback milestones instead of throwing
+    return generateFallbackMilestones(goalTitle, monthsUntilTarget, weeklyHours);
   }
+}
+
+/**
+ * Generate fallback milestones when AI fails
+ */
+function generateFallbackMilestones(
+  goalTitle: string,
+  monthsUntilTarget: number,
+  weeklyHours: number
+): Array<{ month: string; title: string; requiredHours: number }> {
+  const milestones = [];
+  const now = new Date();
+  const monthlyHours = weeklyHours * 4;
+
+  const phases = [
+    'Foundation & Planning',
+    'Core Skills Development',
+    'Practice & Application',
+    'Deep Dive & Specialization',
+    'Integration & Review',
+    'Refinement & Mastery',
+    'Advanced Techniques',
+    'Real-World Projects',
+    'Expert Level Work',
+    'Final Push & Excellence',
+    'Perfection & Polish',
+    'Goal Achievement'
+  ];
+
+  for (let i = 0; i < Math.min(monthsUntilTarget, 12); i++) {
+    const date = new Date(now);
+    date.setMonth(date.getMonth() + i);
+    const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+    milestones.push({
+      month: monthName,
+      title: `${phases[i % phases.length]} for ${goalTitle}`,
+      requiredHours: monthlyHours
+    });
+  }
+
+  return milestones;
 }
 
 /**
