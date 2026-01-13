@@ -37,16 +37,45 @@ export const useCameraPermission = () => {
   const requestPermission = async () => {
     try {
       setPermissionState(prev => ({ ...prev, loading: true }));
-      const result = await Camera.requestPermissions({ permissions: ['camera'] });
-      const granted = result.camera === 'granted';
-      
-      setPermissionState({
-        granted,
-        loading: false,
-        error: granted ? null : 'Camera permission denied',
-      });
-      
-      return granted;
+
+      // Try Capacitor first (native platforms)
+      try {
+        const result = await Camera.requestPermissions({ permissions: ['camera'] });
+        const granted = result.camera === 'granted';
+
+        if (granted) {
+          setPermissionState({
+            granted: true,
+            loading: false,
+            error: null,
+          });
+          return true;
+        }
+      } catch (capacitorError) {
+        console.log('Capacitor camera not available, trying web fallback');
+      }
+
+      // Web fallback: use getUserMedia to trigger browser permission prompt
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        // Permission granted - stop the stream immediately
+        stream.getTracks().forEach(track => track.stop());
+
+        setPermissionState({
+          granted: true,
+          loading: false,
+          error: null,
+        });
+        return true;
+      } catch (webError) {
+        console.error('Web camera permission failed:', webError);
+        setPermissionState({
+          granted: false,
+          loading: false,
+          error: 'Camera permission denied',
+        });
+        return false;
+      }
     } catch (error) {
       console.error('Error requesting camera permission:', error);
       setPermissionState({

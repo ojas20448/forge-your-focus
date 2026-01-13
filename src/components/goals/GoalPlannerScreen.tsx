@@ -31,30 +31,64 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
   onBack,
   goalTitle
 }) => {
-  const { yearGoals } = useGoals();
+  const { yearGoals, updateGoal } = useGoals();
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showPlan, setShowPlan] = useState(false);
   const [acceptedMilestones, setAcceptedMilestones] = useState<number[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [editingMilestone, setEditingMilestone] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<{ title: string, requiredHours: string }>({ title: '', requiredHours: '' });
 
+  // Schedule preferences
+  const [preferredDays, setPreferredDays] = useState<string[]>(['mon', 'tue', 'wed', 'thu', 'fri']);
+  const [preferredTime, setPreferredTime] = useState<'morning' | 'afternoon' | 'evening'>('morning');
+  const [hoursPerSession, setHoursPerSession] = useState(2);
+
+  const daysOfWeek = [
+    { id: 'mon', label: 'M' },
+    { id: 'tue', label: 'T' },
+    { id: 'wed', label: 'W' },
+    { id: 'thu', label: 'T' },
+    { id: 'fri', label: 'F' },
+    { id: 'sat', label: 'S' },
+    { id: 'sun', label: 'S' },
+  ];
+
+  const timeSlots = [
+    { id: 'morning' as const, label: 'Morning', time: '8am-12pm' },
+    { id: 'afternoon' as const, label: 'Afternoon', time: '12pm-5pm' },
+    { id: 'evening' as const, label: 'Evening', time: '5pm-9pm' },
+  ];
+
   // Use the first year goal or provided goal title
   const activeGoal = yearGoals[0];
   const displayTitle = goalTitle || activeGoal?.title || "Your Goal";
 
   useEffect(() => {
-    // Check if goal has existing milestones
-    if (activeGoal?.success_criteria && Array.isArray((activeGoal.success_criteria as any)?.milestones)) {
-      const existingMilestones = (activeGoal.success_criteria as any).milestones.map((m: string, i: number) => ({
-        month: new Date(2026, i, 1).toLocaleString('default', { month: 'short', year: 'numeric' }),
-        title: m,
-        requiredHours: 40 + (i * 5), // Default hours
-        isComplete: false
-      }));
-      setMilestones(existingMilestones);
-      setShowPlan(true);
+    // Check if goal has existing milestones saved in success_criteria
+    if (activeGoal?.success_criteria) {
+      const criteria = activeGoal.success_criteria as any;
+
+      // Check for new format (milestones array with full objects)
+      if (criteria.plan_milestones && Array.isArray(criteria.plan_milestones)) {
+        setMilestones(criteria.plan_milestones);
+        setAcceptedMilestones(criteria.plan_milestones.map((_: any, i: number) => i));
+        setShowPlan(true);
+      }
+      // Legacy format (just string array)
+      else if (criteria.milestones && Array.isArray(criteria.milestones)) {
+        const existingMilestones = criteria.milestones.map((m: string, i: number) => ({
+          month: new Date(2026, i, 1).toLocaleString('default', { month: 'short', year: 'numeric' }),
+          title: m,
+          requiredHours: 40 + (i * 5),
+          isComplete: false
+        }));
+        setMilestones(existingMilestones);
+        setAcceptedMilestones(existingMilestones.map((_: any, i: number) => i));
+        setShowPlan(true);
+      }
     }
   }, [activeGoal]);
 
@@ -88,6 +122,43 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
     setAcceptedMilestones(prev =>
       prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
     );
+  };
+
+  const handleConfirmPlan = async () => {
+    if (!activeGoal) {
+      toast({ title: 'No goal found', variant: 'destructive' });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Save milestones AND schedule preferences to the goal
+      const success = await updateGoal(activeGoal.id, {
+        success_criteria: {
+          ...((activeGoal.success_criteria as any) || {}),
+          plan_milestones: milestones,
+          plan_accepted_at: new Date().toISOString(),
+          schedule: {
+            preferred_days: preferredDays,
+            preferred_time: preferredTime,
+            hours_per_session: hoursPerSession,
+          }
+        }
+      });
+
+      if (success) {
+        toast({
+          title: 'Plan saved!',
+          description: `Your plan will be scheduled on ${preferredDays.length} days per week during ${preferredTime}.`
+        });
+        onBack();
+      }
+    } catch (error) {
+      console.error('Error saving plan:', error);
+      toast({ title: 'Failed to save plan', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const startEditing = (index: number) => {
@@ -388,6 +459,85 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
                 className="h-2"
               />
             </div>
+
+            {/* Schedule Preferences */}
+            {acceptedMilestones.length === milestones.length && (
+              <div className="space-y-4 p-4 rounded-xl bg-primary/5 border border-primary/20">
+                <h3 className="text-sm font-semibold text-foreground">When do you want to work on this?</h3>
+
+                {/* Day Selection */}
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">Select days</p>
+                  <div className="flex gap-2">
+                    {daysOfWeek.map((day) => (
+                      <button
+                        key={day.id}
+                        onClick={() => setPreferredDays(prev =>
+                          prev.includes(day.id)
+                            ? prev.filter(d => d !== day.id)
+                            : [...prev, day.id]
+                        )}
+                        className={cn(
+                          "w-9 h-9 rounded-lg text-sm font-medium transition-all",
+                          preferredDays.includes(day.id)
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                        )}
+                      >
+                        {day.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Time Preference */}
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">Preferred time</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {timeSlots.map((slot) => (
+                      <button
+                        key={slot.id}
+                        onClick={() => setPreferredTime(slot.id)}
+                        className={cn(
+                          "p-3 rounded-lg text-center transition-all",
+                          preferredTime === slot.id
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary text-foreground hover:bg-secondary/80"
+                        )}
+                      >
+                        <p className="text-sm font-medium">{slot.label}</p>
+                        <p className="text-xs opacity-70">{slot.time}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Hours per session */}
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">Hours per session</p>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4].map((h) => (
+                      <button
+                        key={h}
+                        onClick={() => setHoursPerSession(h)}
+                        className={cn(
+                          "flex-1 py-2 rounded-lg text-sm font-medium transition-all",
+                          hoursPerSession === h
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                        )}
+                      >
+                        {h}h
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  {preferredDays.length * hoursPerSession}h/week • {preferredDays.length} sessions
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -456,9 +606,23 @@ export const GoalPlannerScreen: React.FC<GoalPlannerScreenProps> = ({
       {/* Bottom Action */}
       {showPlan && acceptedMilestones.length === milestones.length && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-xl border-t border-border max-w-md mx-auto">
-          <Button className="w-full h-12" variant="glow" onClick={onBack}>
-            <Check className="w-4 h-4 mr-2" />
-            Confirm & Activate Plan
+          <Button
+            className="w-full h-12"
+            variant="glow"
+            onClick={handleConfirmPlan}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving Plan...
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4 mr-2" />
+                Confirm & Save Plan
+              </>
+            )}
           </Button>
         </div>
       )}

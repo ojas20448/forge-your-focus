@@ -7,27 +7,32 @@ interface GoalOverviewCardProps {
   yearGoal: Goal;
   nextMilestone?: string;
   daysUntilMilestone?: number;
+  onClick?: () => void;
 }
 
 export const GoalOverviewCard: React.FC<GoalOverviewCardProps> = ({
   yearGoal,
   nextMilestone,
   daysUntilMilestone,
+  onClick,
 }) => {
   const getHealthColor = (score: number) => {
     if (score >= 70) return 'text-success bg-success/20';
     if (score >= 40) return 'text-warning bg-warning/20';
-    return 'text-accent bg-accent/20';
+    return 'text-destructive bg-destructive/20';
   };
 
   const progressPercentage = yearGoal.progress_percent;
 
   return (
     <div className="px-4 py-2">
-      <div className="gradient-card rounded-2xl p-4 border border-border/50 overflow-hidden relative">
+      <button
+        onClick={onClick}
+        className="w-full text-left gradient-card rounded-2xl p-4 border border-border/50 overflow-hidden relative hover:border-primary/30 transition-colors"
+      >
         {/* Subtle glow effect */}
         <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary/10 rounded-full blur-3xl" />
-        
+
         <div className="relative z-10">
           {/* Header */}
           <div className="flex items-start justify-between mb-4">
@@ -47,9 +52,9 @@ export const GoalOverviewCard: React.FC<GoalOverviewCardProps> = ({
                 {yearGoal.title}
               </h3>
             </div>
-            <button className="w-8 h-8 rounded-full bg-secondary/50 flex items-center justify-center hover:bg-secondary transition-colors">
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </button>
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <ChevronRight className="w-4 h-4 text-primary" />
+            </div>
           </div>
 
           {/* Progress Ring */}
@@ -73,9 +78,6 @@ export const GoalOverviewCard: React.FC<GoalOverviewCardProps> = ({
                   strokeWidth="3"
                   strokeLinecap="round"
                   strokeDasharray={`${progressPercentage * 0.94} 94`}
-                  style={{
-                    filter: 'drop-shadow(0 0 6px hsl(var(--primary) / 0.5))',
-                  }}
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
@@ -97,7 +99,7 @@ export const GoalOverviewCard: React.FC<GoalOverviewCardProps> = ({
                   </p>
                 </div>
               )}
-              
+
               {daysUntilMilestone !== undefined && (
                 <div className="flex items-center gap-1">
                   <Clock className="w-3 h-3 text-muted-foreground" />
@@ -120,7 +122,7 @@ export const GoalOverviewCard: React.FC<GoalOverviewCardProps> = ({
             />
           </div>
         </div>
-      </div>
+      </button>
     </div>
   );
 };

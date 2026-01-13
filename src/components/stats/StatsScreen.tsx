@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import { Clock, Target, Zap, TrendingUp, Calendar, Flame, Brain, BarChart3, AlertTriangle, Trophy, FileText } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Clock, Target, Zap, TrendingUp, Calendar, Flame, Brain, BarChart3, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AchievementsScreen } from '@/components/achievements/AchievementsScreen';
-import { RaidsScreen } from '@/components/raids/RaidsScreen';
 import { AdvancedAnalyticsDashboard } from '@/components/analytics/AdvancedAnalyticsDashboard';
 
 interface StatCardProps {
@@ -26,7 +25,7 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, value, change, suffix 
     {change !== undefined && (
       <div className={cn(
         "flex items-center gap-1 mt-1 text-xs",
-        change >= 0 ? "text-success" : "text-accent"
+        change >= 0 ? "text-success" : "text-destructive"
       )}>
         <TrendingUp className={cn("w-3 h-3", change < 0 && "rotate-180")} />
         <span>{change >= 0 ? '+' : ''}{change}% vs last week</span>
@@ -37,7 +36,7 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, value, change, suffix 
 
 export const StatsScreen: React.FC = () => {
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('week');
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'achievements' | 'raids' | 'analytics'>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'achievements' | 'analytics'>('overview');
 
   const weeklyData = [
     { day: 'M', hours: 4.5, target: 7 },
@@ -49,15 +48,21 @@ export const StatsScreen: React.FC = () => {
     { day: 'S', hours: 2.0, target: 5 },
   ];
 
+  // Memoize streak data to prevent re-rendering issues
+  const streakData = useMemo(() => {
+    return Array.from({ length: 28 }).map((_, i) => {
+      // Deterministic pattern based on index
+      const isActive = i < 23; // Last 23 days active
+      const intensity = isActive ? ((i % 3 === 0) ? 0.8 : (i % 2 === 0) ? 0.5 : 0.3) : 0;
+      return { intensity };
+    });
+  }, []);
+
   const maxHours = Math.max(...weeklyData.map(d => Math.max(d.hours, d.target)));
 
   // Show sub-screens based on active tab
   if (activeSubTab === 'achievements') {
     return <AchievementsScreen />;
-  }
-
-  if (activeSubTab === 'raids') {
-    return <RaidsScreen />;
   }
 
   if (activeSubTab === 'analytics') {
@@ -71,15 +76,15 @@ export const StatsScreen: React.FC = () => {
         <div className="px-4 py-4">
           <h1 className="text-xl font-bold text-foreground">Progress</h1>
         </div>
-        
+
         {/* Sub-navigation tabs */}
         <div className="flex px-4 pb-2 gap-2">
           <button
             onClick={() => setActiveSubTab('overview')}
             className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-              activeSubTab === 'overview' 
-                ? "bg-primary text-primary-foreground" 
+              activeSubTab === 'overview'
+                ? "bg-primary text-primary-foreground"
                 : "bg-secondary/50 text-muted-foreground"
             )}
           >
@@ -90,8 +95,8 @@ export const StatsScreen: React.FC = () => {
             onClick={() => setActiveSubTab('achievements')}
             className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-              activeSubTab === 'achievements' 
-                ? "bg-primary text-primary-foreground" 
+              activeSubTab === 'achievements'
+                ? "bg-primary text-primary-foreground"
                 : "bg-secondary/50 text-muted-foreground"
             )}
           >
@@ -99,23 +104,11 @@ export const StatsScreen: React.FC = () => {
             <span>Awards</span>
           </button>
           <button
-            onClick={() => setActiveSubTab('raids')}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-              activeSubTab === 'raids' 
-                ? "bg-primary text-primary-foreground" 
-                : "bg-secondary/50 text-muted-foreground"
-            )}
-          >
-            <Flame className="w-4 h-4" />
-            <span>Raids</span>
-          </button>
-          <button
             onClick={() => setActiveSubTab('analytics')}
             className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-              activeSubTab === 'analytics' 
-                ? "bg-primary text-primary-foreground" 
+              activeSubTab === 'analytics'
+                ? "bg-primary text-primary-foreground"
                 : "bg-secondary/50 text-muted-foreground"
             )}
           >
@@ -123,7 +116,7 @@ export const StatsScreen: React.FC = () => {
             <span>Analytics</span>
           </button>
         </div>
-        
+
         {/* Time range tabs */}
         <div className="flex px-4 pb-3 gap-2">
           {(['week', 'month', 'year'] as const).map((range) => (
@@ -132,8 +125,8 @@ export const StatsScreen: React.FC = () => {
               onClick={() => setTimeRange(range)}
               className={cn(
                 "flex-1 py-1.5 px-3 rounded-lg text-xs font-medium transition-all capitalize",
-                timeRange === range 
-                  ? "bg-primary/20 text-primary border border-primary/30" 
+                timeRange === range
+                  ? "bg-primary/20 text-primary border border-primary/30"
                   : "bg-secondary/30 text-muted-foreground"
               )}
             >
@@ -160,68 +153,17 @@ export const StatsScreen: React.FC = () => {
             change={8}
           />
           <StatCard
-            icon={<Zap className="w-4 h-4 text-xp-glow" />}
+            icon={<Zap className="w-4 h-4 text-primary" />}
             label="XP Earned"
             value="2,450"
             change={15}
           />
           <StatCard
-            icon={<Flame className="w-4 h-4 text-streak-glow" />}
+            icon={<Flame className="w-4 h-4 text-orange-500" />}
             label="Current Streak"
             value={23}
             suffix="days"
           />
-        </div>
-      </section>
-
-      {/* Debt Score Alert */}
-      <section className="px-4 py-2">
-        <div className={cn(
-          "bg-card rounded-2xl border p-4",
-          32 > 50 ? "border-accent/50 bg-accent/5" : 
-          32 > 25 ? "border-warning/50 bg-warning/5" : "border-success/50 bg-success/5"
-        )}>
-          <div className="flex items-start gap-3">
-            <div className={cn(
-              "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
-              32 > 50 ? "bg-accent/20" : 32 > 25 ? "bg-warning/20" : "bg-success/20"
-            )}>
-              <AlertTriangle className={cn(
-                "w-5 h-5",
-                32 > 50 ? "text-accent" : 32 > 25 ? "text-warning" : "text-success"
-              )} />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="text-sm font-semibold text-foreground">Task Debt Score</h3>
-                <span className={cn(
-                  "text-xl font-bold font-mono-time",
-                  32 > 50 ? "text-accent" : 32 > 25 ? "text-warning" : "text-success"
-                )}>
-                  32%
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mb-3">
-                {32 > 50 ? "⚠️ Critical! Many overdue tasks. Complete them to avoid XP penalties." :
-                 32 > 25 ? "⚡ Moderate debt. Focus on clearing rotten tasks this week." :
-                 "✨ Great! Low debt score. Keep up the momentum!"}
-              </p>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Rotten Tasks</span>
-                  <span className="font-medium text-accent">3 tasks</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Overdue Hours</span>
-                  <span className="font-medium text-warning">4.5 hours</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Potential XP Loss</span>
-                  <span className="font-medium text-accent">-180 XP</span>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -236,17 +178,17 @@ export const StatsScreen: React.FC = () => {
               <div key={index} className="flex-1 flex flex-col items-center gap-2">
                 <div className="w-full h-32 flex flex-col justify-end gap-1">
                   {/* Target indicator */}
-                  <div 
+                  <div
                     className="w-full bg-secondary rounded-t-md"
                     style={{ height: `${(data.target / maxHours) * 100}%` }}
                   />
                   {/* Actual hours */}
-                  <div 
+                  <div
                     className={cn(
                       "w-full rounded-t-md transition-all",
                       data.hours >= data.target ? "bg-success" : "bg-primary"
                     )}
-                    style={{ 
+                    style={{
                       height: `${(data.hours / maxHours) * 100}%`,
                       marginTop: `-${(data.target / maxHours) * 100}%`
                     }}
@@ -256,7 +198,7 @@ export const StatsScreen: React.FC = () => {
               </div>
             ))}
           </div>
-          
+
           {/* Legend */}
           <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-border/50">
             <div className="flex items-center gap-2">
@@ -306,13 +248,13 @@ export const StatsScreen: React.FC = () => {
           <div className="bg-card rounded-xl p-4 border border-border/50">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-warning" />
-                <span className="text-sm font-medium text-foreground">Verification Rate</span>
+                <Calendar className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">Completion Rate</span>
               </div>
-              <span className="text-lg font-bold font-mono-time text-warning">94%</span>
+              <span className="text-lg font-bold font-mono-time text-primary">94%</span>
             </div>
             <div className="h-2 bg-secondary rounded-full overflow-hidden">
-              <div className="h-full bg-warning rounded-full" style={{ width: '94%' }} />
+              <div className="h-full bg-primary rounded-full" style={{ width: '94%' }} />
             </div>
           </div>
         </div>
@@ -325,21 +267,17 @@ export const StatsScreen: React.FC = () => {
         </h2>
         <div className="bg-card rounded-2xl border border-border/50 p-4">
           <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: 28 }).map((_, i) => {
-              const isActive = Math.random() > 0.2;
-              const intensity = isActive ? Math.random() : 0;
-              return (
-                <div
-                  key={i}
-                  className={cn(
-                    "aspect-square rounded-sm transition-colors",
-                    intensity > 0.7 ? "bg-success" :
-                    intensity > 0.4 ? "bg-success/60" :
-                    intensity > 0 ? "bg-success/30" : "bg-secondary"
-                  )}
-                />
-              );
-            })}
+            {streakData.map((data, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "aspect-square rounded-sm transition-colors",
+                  data.intensity > 0.7 ? "bg-success" :
+                    data.intensity > 0.4 ? "bg-success/60" :
+                      data.intensity > 0 ? "bg-success/30" : "bg-secondary"
+                )}
+              />
+            ))}
           </div>
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
             <span className="text-xs text-muted-foreground">4 weeks ago</span>

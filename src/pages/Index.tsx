@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Sparkles } from 'lucide-react';
+import { User } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { BottomNavigation, TabId } from '@/components/layout/BottomNavigation';
 import { DateStrip } from '@/components/dashboard/DateStrip';
@@ -12,12 +12,8 @@ import { CameraStatusBubble } from '@/components/CameraStatusBubble';
 import { FocusSessionScreen } from '@/components/focus/FocusSessionScreen';
 import { GoalsScreen } from '@/components/goals/GoalsScreen';
 import { GoalPlannerScreen } from '@/components/goals/GoalPlannerScreen';
-import { ManifestationScreen } from '@/components/manifestation/ManifestationScreen';
-import { RaidsScreen } from '@/components/raids/RaidsScreen';
 import { StatsScreen } from '@/components/stats/StatsScreen';
 import { SettingsScreen } from '@/components/settings/SettingsScreen';
-import { AchievementsScreen } from '@/components/achievements/AchievementsScreen';
-import { ContractsOverviewScreen } from '@/components/contracts/ContractsOverviewScreen';
 import { AISchedulerModal } from '@/components/scheduler/AISchedulerModal';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { DailyCheckinModal } from '@/components/checkin/DailyCheckinModal';
@@ -44,7 +40,7 @@ const Index = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
-  
+
   const [hasOnboarded, setHasOnboarded] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem(ONBOARDING_KEY) === 'true';
@@ -87,7 +83,7 @@ const Index = () => {
         decayCheckInterval: 6 * 60 * 60 * 1000, // 6 hours
       });
       console.log('Task decay automation started');
-      
+
       return () => {
         taskDecayService.stop();
       };
@@ -162,22 +158,22 @@ const Index = () => {
   const handleOnboardingComplete = () => {
     localStorage.setItem(ONBOARDING_KEY, 'true');
     setHasOnboarded(true);
-    
+
     // Refetch goals to show newly created goal from onboarding
     setTimeout(() => {
       refetchGoals();
     }, 200);
-    
+
     setShowAppTour(true);
-    
+
     // Request camera permission after onboarding
     setTimeout(() => {
       setShowCameraPermission(true);
     }, 2000); // Show 2 seconds after tour starts
-    
-    toast({ 
-      title: "Welcome to Xecute!", 
-      description: "Your goal has been created! Let's explore the app." 
+
+    toast({
+      title: "Welcome to Xecute!",
+      description: "Your goal has been created! Let's explore the app."
     });
   };
 
@@ -256,7 +252,7 @@ const Index = () => {
           refetchTasks();
           toast({ title: "Session ended", description: `+${xpEarned} XP earned!` });
         }}
-        onPause={() => {}}
+        onPause={() => { }}
       />
     );
   }
@@ -275,22 +271,10 @@ const Index = () => {
             <GoalsScreen onOpenPlanner={() => setShowGoalPlanner(true)} />
           </ErrorBoundary>
         );
-      case 'raids':
-        return (
-          <ErrorBoundary>
-            <RaidsScreen />
-          </ErrorBoundary>
-        );
-      case 'contracts':
-        return (
-          <ErrorBoundary>
-            <ContractsOverviewScreen onBack={() => setActiveTab('home')} />
-          </ErrorBoundary>
-        );
       case 'stats':
         return (
           <ErrorBoundary>
-            <AchievementsScreen />
+            <StatsScreen />
           </ErrorBoundary>
         );
       case 'settings':
@@ -313,46 +297,25 @@ const Index = () => {
                     {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-                    <span className="text-xs font-bold text-primary font-mono-time">LVL {userStats.level}</span>
-                  </div>
-                  <button
-                    onClick={() => setActiveTab('settings')}
-                    className="w-9 h-9 rounded-lg bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors"
-                    aria-label="Profile"
-                  >
-                    <User className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                </div>
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className="w-10 h-10 rounded-xl bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors"
+                  aria-label="Profile"
+                >
+                  <User className="w-5 h-5 text-muted-foreground" />
+                </button>
               </div>
             </header>
             <DateStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} dayStatuses={{}} />
             <div data-tour="stats">
               <StatsBar stats={userStats} />
             </div>
-            
-            {/* AI Coaching Message */}
-            {userStats.current_streak > 0 && (
-              <div className="mx-4 mt-4 p-3 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
-                <div className="flex items-center gap-2 mb-1">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  <span className="text-xs font-semibold text-primary">AI Coach</span>
-                </div>
-                <p className="text-sm text-foreground">
-                  {userStats.current_streak >= 7 
-                    ? `Amazing! ${userStats.current_streak} day streak! You're building unstoppable momentum! 🔥`
-                    : userStats.current_streak >= 3
-                    ? `${userStats.current_streak} days strong! Keep the momentum going! 💪`
-                    : `Day ${userStats.current_streak}! Every day counts. Stay consistent! ⚡`
-                  }
-                </p>
-              </div>
-            )}
-            
+
+
+
             {yearGoals.length > 0 && (
               <div data-tour="goals">
-                <GoalOverviewCard 
+                <GoalOverviewCard
                   yearGoal={{
                     id: yearGoals[0].id,
                     type: 'year',
@@ -362,9 +325,10 @@ const Index = () => {
                     progress_percent: yearGoals[0].progress || 0,
                     is_active: yearGoals[0].is_active ?? true,
                     health_score: 70,
-                  }} 
-                  nextMilestone={(yearGoals[0].success_criteria as { milestones?: string[] } | null)?.milestones?.[0] || "Keep building momentum"} 
-                  daysUntilMilestone={30} 
+                  }}
+                  nextMilestone={(yearGoals[0].success_criteria as { plan_milestones?: { title: string }[] } | null)?.plan_milestones?.[0]?.title || (yearGoals[0].success_criteria as { milestones?: string[] } | null)?.milestones?.[0] || "Tap to create a plan"}
+                  daysUntilMilestone={30}
+                  onClick={() => setShowGoalPlanner(true)}
                 />
               </div>
             )}
@@ -407,19 +371,19 @@ const Index = () => {
     <MobileLayout showNav={false}>
       {renderTabContent()}
       <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-      <AISchedulerModal 
-        isOpen={showSchedulerModal} 
+      <AISchedulerModal
+        isOpen={showSchedulerModal}
         onClose={() => setShowSchedulerModal(false)}
         onTasksGenerated={handleTasksGenerated}
         energyProfile={userStats.energy_profile}
         goals={goals.map(g => ({ title: g.title, id: g.id }))}
         selectedDate={selectedDate}
       />
-      <DailyCheckinModal 
+      <DailyCheckinModal
         isOpen={showCheckinModal}
         onClose={() => setShowCheckinModal(false)}
       />
-      <QuickAddTaskModal 
+      <QuickAddTaskModal
         isOpen={showQuickAddTask}
         onClose={() => {
           setShowQuickAddTask(false);
@@ -438,7 +402,7 @@ const Index = () => {
           onStartFocus={handleStartFocusFromDetail}
         />
       )}
-      <AppTourModal 
+      <AppTourModal
         isOpen={showAppTour}
         onClose={() => setShowAppTour(false)}
       />

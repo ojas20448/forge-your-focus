@@ -31,7 +31,7 @@ export const Timeline: React.FC<TimelineProps> = ({ tasks, onTaskClick }) => {
   }
 
   // Sort tasks by start time
-  const sortedTasks = [...tasks].sort((a, b) => 
+  const sortedTasks = [...tasks].sort((a, b) =>
     a.suggested_block.start.localeCompare(b.suggested_block.start)
   );
 
@@ -39,12 +39,12 @@ export const Timeline: React.FC<TimelineProps> = ({ tasks, onTaskClick }) => {
   const getBreakBetweenTasks = (currentTask: Task, nextTask: Task) => {
     const currentEnd = currentTask.suggested_block.end;
     const nextStart = nextTask.suggested_block.start;
-    
+
     if (currentEnd < nextStart) {
       const [currentEndHour, currentEndMin] = currentEnd.split(':').map(Number);
       const [nextStartHour, nextStartMin] = nextStart.split(':').map(Number);
       const breakDuration = (nextStartHour * 60 + nextStartMin) - (currentEndHour * 60 + currentEndMin);
-      
+
       if (breakDuration >= 5 && breakDuration <= 30) {
         return {
           duration: breakDuration,
@@ -99,34 +99,16 @@ export const Timeline: React.FC<TimelineProps> = ({ tasks, onTaskClick }) => {
 
         {/* Empty state */}
         {sortedTasks.length === 0 && (
-          <div className="ml-14 mr-4 py-12 flex flex-col items-center justify-center text-center">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-4">
-              <span className="text-4xl">📅</span>
+          <div className="ml-14 mr-4 py-16 flex flex-col items-center justify-center text-center">
+            <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">No tasks scheduled</h3>
-            <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-              Start by adding a task to build your perfect day
+            <h3 className="text-lg font-semibold text-foreground mb-2">No tasks yet</h3>
+            <p className="text-sm text-muted-foreground max-w-[200px]">
+              Tap the + button to add your first task
             </p>
-            <div className="space-y-2 text-left w-full max-w-xs">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quick Examples:</p>
-              <div className="space-y-1.5">
-                {[
-                  { emoji: '📚', text: 'Study session (60-90 min)' },
-                  { emoji: '💪', text: 'Workout (30-45 min)' },
-                  { emoji: '🎯', text: 'Project work (2 hours)' },
-                ].map((example, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span>{example.emoji}</span>
-                    <span>{example.text}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="mt-6 p-3 rounded-xl bg-primary/5 border border-primary/20">
-              <p className="text-xs text-primary font-medium">
-                💡 Tap the button below to add your first task
-              </p>
-            </div>
           </div>
         )}
       </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flame, Zap, Trophy, Target, AlertTriangle } from 'lucide-react';
+import { Flame, Zap, Clock } from 'lucide-react';
 import { UserStats } from '@/types/focusforge';
 import { cn } from '@/lib/utils';
 
@@ -8,23 +8,19 @@ interface StatsBarProps {
 }
 
 export const StatsBar: React.FC<StatsBarProps> = ({ stats }) => {
-  const leagueColors = {
-    bronze: 'text-league-bronze',
-    silver: 'text-league-silver',
-    gold: 'text-league-gold',
-    diamond: 'text-primary',
-  };
+  const weeklyProgress = Math.min((stats.weekly_focus_hours / stats.weekly_goal_hours) * 100, 100);
+  const isWeeklyGoalMet = stats.weekly_focus_hours >= stats.weekly_goal_hours;
 
   return (
     <div className="px-4 py-3">
-      <div className="flex items-center justify-between bg-card/50 rounded-2xl p-3 border border-border/50">
+      <div className="flex items-center justify-between gap-3">
         {/* XP */}
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-xp-glow/20 flex items-center justify-center">
-            <Zap className="w-4 h-4 text-xp-glow" />
+        <div className="flex-1 flex items-center gap-2 bg-card/50 rounded-xl p-3 border border-border/50">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Zap className="w-4 h-4 text-primary" />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">XP</span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">XP</span>
             <span className="text-sm font-bold font-mono-time text-foreground">
               {stats.total_xp.toLocaleString()}
             </span>
@@ -32,72 +28,50 @@ export const StatsBar: React.FC<StatsBarProps> = ({ stats }) => {
         </div>
 
         {/* Streak */}
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-streak-glow/20 flex items-center justify-center">
-            <Flame className="w-4 h-4 text-streak-glow" />
+        <div className="flex-1 flex items-center gap-2 bg-card/50 rounded-xl p-3 border border-border/50">
+          <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+            <Flame className="w-4 h-4 text-orange-500" />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">Streak</span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Streak</span>
             <span className="text-sm font-bold font-mono-time text-foreground">
-              {stats.current_streak}d
+              {stats.current_streak} days
             </span>
           </div>
         </div>
 
-        {/* League */}
-        <div className="flex items-center gap-2">
-          <div className={cn(
-            "w-8 h-8 rounded-lg flex items-center justify-center",
-            stats.league === 'diamond' ? 'bg-primary/20' : 'bg-secondary'
-          )}>
-            <Trophy className={cn("w-4 h-4", leagueColors[stats.league])} />
+        {/* Today's Focus */}
+        <div className="flex-1 flex items-center gap-2 bg-card/50 rounded-xl p-3 border border-border/50">
+          <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
+            <Clock className="w-4 h-4 text-success" />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">Rank</span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Today</span>
             <span className="text-sm font-bold font-mono-time text-foreground">
-              #{stats.league_rank}
-            </span>
-          </div>
-        </div>
-
-        {/* Debt Score - replaces weekly focus, moved below */}
-        <div className="flex items-center gap-2">
-          <div className={cn(
-            "w-8 h-8 rounded-lg flex items-center justify-center",
-            stats.debt_score > 50 ? 'bg-accent/20' : stats.debt_score > 25 ? 'bg-warning/20' : 'bg-success/20'
-          )}>
-            <AlertTriangle className={cn(
-              "w-4 h-4",
-              stats.debt_score > 50 ? 'text-accent' : stats.debt_score > 25 ? 'text-warning' : 'text-success'
-            )} />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">Debt</span>
-            <span className={cn(
-              "text-sm font-bold font-mono-time",
-              stats.debt_score > 50 ? 'text-accent' : stats.debt_score > 25 ? 'text-warning' : 'text-success'
-            )}>
-              {stats.debt_score}%
+              {stats.weekly_focus_hours}h
             </span>
           </div>
         </div>
       </div>
-      
+
       {/* Weekly Focus Progress Bar */}
-      <div className="mt-2 px-1">
-        <div className="flex items-center justify-between text-xs mb-1">
-          <span className="text-muted-foreground">Weekly Focus</span>
-          <span className="font-mono-time font-medium text-foreground">
+      <div className="mt-3 p-3 bg-card/50 rounded-xl border border-border/50">
+        <div className="flex items-center justify-between text-xs mb-2">
+          <span className="text-muted-foreground font-medium">Weekly Goal</span>
+          <span className={cn(
+            "font-mono-time font-semibold",
+            isWeeklyGoalMet ? "text-success" : "text-foreground"
+          )}>
             {stats.weekly_focus_hours}h / {stats.weekly_goal_hours}h
           </span>
         </div>
-        <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-          <div 
+        <div className="h-2 bg-secondary rounded-full overflow-hidden">
+          <div
             className={cn(
-              "h-full rounded-full transition-all",
-              stats.weekly_focus_hours >= stats.weekly_goal_hours ? 'bg-success' : 'bg-primary'
+              "h-full rounded-full transition-all duration-500",
+              isWeeklyGoalMet ? 'bg-success' : 'bg-primary'
             )}
-            style={{ width: `${Math.min((stats.weekly_focus_hours / stats.weekly_goal_hours) * 100, 100)}%` }}
+            style={{ width: `${weeklyProgress}%` }}
           />
         </div>
       </div>
